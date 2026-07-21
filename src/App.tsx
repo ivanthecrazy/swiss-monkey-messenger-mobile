@@ -9,6 +9,7 @@ import { setAppVersion } from "./services/config.ts";
 import { ProtectedRoute } from "@regimenthq/shell-auth";
 import Login from "./pages/Login.tsx";
 import Messenger from "./pages/Messenger.tsx";
+import Settings from "./pages/Settings.tsx";
 
 const App = () => {
   const [ready, setReady] = useState(false);
@@ -35,6 +36,14 @@ const App = () => {
           element={(
             <ProtectedRoute>
               <Messenger />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/settings"
+          element={(
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           )}
         />

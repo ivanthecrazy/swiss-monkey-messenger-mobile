@@ -69,9 +69,31 @@ npm run assets
 Then rebuild in Xcode / Android Studio. iOS caches icons aggressively — if the old
 one lingers, delete the app from the simulator and clean the build folder.
 
-## Not yet (phase 2)
-- **Push notifications** (FCM / APNs) — the backend device-token registration
-  (`POST/DELETE /api/device_tokens`) is done; still needs a Firebase project, an
-  Apple push key, the mobile permission/registration flow, and the send pipeline.
+## Push notifications
+Both platforms use **FCM** (Firebase relays to iOS through APNs), so the backend
+has a single integration. The app code is wired already (`src/services/push.ts`:
+permission → token → `POST /api/device_tokens`, token refresh, and tap-to-open-chat);
+what remains is the Firebase project setup.
+
+**One-time setup**
+1. Create a Firebase project and add both apps to it:
+   - **Android** package `io.swissmonkey.messenger` → download `google-services.json`
+     → put it in `android/app/`.
+   - **iOS** bundle id `io.swissmonkey.messenger` → download `GoogleService-Info.plist`
+     → add it to the Xcode project (drag into `App/App`, "Copy items if needed").
+2. **iOS only:** create an APNs auth key (`.p8`) in the Apple Developer portal and
+   upload it in Firebase → Project settings → Cloud Messaging. Then in Xcode enable
+   the **Push Notifications** capability and **Background Modes → Remote notifications**.
+3. **Android only:** apply the Google Services plugin (per
+   `@capacitor-firebase/messaging` docs) in `android/build.gradle` +
+   `android/app/build.gradle`.
+4. Backend: set `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT_JSON` (the
+   service-account key JSON, verbatim) on the platform. Without them the send
+   service is a no-op, so nothing breaks in environments that skip push.
+
+Notifications fire for new messages from other people; muted chats are excluded
+(the backend filters them upstream). Tapping one opens that conversation.
+
+## Not yet
 - Secure token storage (Keychain/Keystore) — currently the WebView's localStorage.
 - Status-bar styling, deep links.

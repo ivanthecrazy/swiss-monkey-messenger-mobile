@@ -8,6 +8,7 @@ import { startMessenger, stopMessenger } from "../messenger/bootstrap.ts";
 import { getTokenStore } from "@regimenthq/shell-auth";
 import UserBlock from "../components/UserBlock.tsx";
 import ChatSearchBar, { ChatSearch } from "../components/ChatSearchBar.tsx";
+import { registerPush } from "../services/push.ts";
 
 // Single-pane mobile messenger: the chat list is full-screen, tapping a chat pushes
 // the conversation over it, and the back arrow returns to the list. Data-loading
@@ -51,6 +52,9 @@ const Messenger = () => {
 
   useEffect(() => {
     startMessenger();
+    // Register for push once we're authenticated; tapping a notification opens
+    // its chat. No-ops in the browser.
+    registerPush((chatId) => openChat(chatId));
     return () => stopMessenger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

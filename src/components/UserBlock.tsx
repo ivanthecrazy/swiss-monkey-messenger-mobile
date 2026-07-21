@@ -6,7 +6,7 @@ import {
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { getTokenStore, logout } from "@regimenthq/shell-auth";
-import AvatarEditDialog from "./AvatarEditDialog.tsx";
+import { unregisterPush } from "../services/push.ts";
 
 // The stored user carries more than shell-auth's User type declares (e.g. photo_url
 // from the login serializer), so read those extra fields loosely.
@@ -23,25 +23,19 @@ const initials = (name?: string) =>
 
 const UserBlock = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(getTokenStore().getUser() as CurrentUser | null);
+  // Read once on mount; returning from Settings remounts this, so an avatar
+  // changed there shows up without extra plumbing.
+  const [user] = useState(getTokenStore().getUser() as CurrentUser | null);
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [avatarOpen, setAvatarOpen] = useState(false);
 
   const signOut = async () => {
     setConfirmOpen(false);
+    // Drop this device's push token first — while we're still authenticated —
+    // so the next user on this device doesn't get the previous one's alerts.
+    await unregisterPush();
     await logout(); // revokes the token server-side + clears the local session
     navigate("/login", { replace: true });
-  };
-
-  // Persist the new avatar to the token store and refresh the displayed one.
-  const onAvatarUploaded = (photoUrl?: string) => {
-    const store = getTokenStore();
-    const current = store.getUser();
-    if (!current) return;
-    const updated = { ...current, photo_url: photoUrl };
-    store.setUser(updated);
-    setUser(updated as CurrentUser);
   };
 
   return (
@@ -61,7 +55,7 @@ const UserBlock = () => {
         <MoreVertIcon />
       </IconButton>
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
-        <MenuItem onClick={() => { setAnchor(null); setAvatarOpen(true); }}>Edit avatar</MenuItem>
+        <MenuItem onClick={() => { setAnchor(null); navigate("/settings"); }}>Settings</MenuItem>
         <MenuItem onClick={() => { setAnchor(null); setConfirmOpen(true); }}>Sign out</MenuItem>
       </Menu>
 
@@ -75,14 +69,6 @@ const UserBlock = () => {
           <Button color="error" variant="contained" onClick={signOut}>Sign out</Button>
         </DialogActions>
       </Dialog>
-
-      <AvatarEditDialog
-        open={avatarOpen}
-        onClose={() => setAvatarOpen(false)}
-        currentPhotoUrl={user?.photo_url}
-        fallback={initials(user?.name)}
-        onUploaded={onAvatarUploaded}
-      />
     </Box>
   );
 };
