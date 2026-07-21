@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Avatar, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText,
-  DialogTitle, Divider, IconButton, Stack, Typography,
+  Avatar, Box, Button, Divider, IconButton, Stack, Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import toast from "react-hot-toast";
-import { authPost, getTokenStore } from "@regimenthq/shell-auth";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { getTokenStore } from "@regimenthq/shell-auth";
 import AvatarEditDialog from "../components/AvatarEditDialog.tsx";
+import { PLATFORM_ORIGIN } from "../services/config.ts";
 
-type CurrentUser = { name?: string; email?: string; photo_url?: string };
+type CurrentUser = { id?: number; name?: string; email?: string; photo_url?: string };
 
 const initials = (name?: string) =>
   (name || "?").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("")
@@ -21,8 +21,12 @@ const Settings = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(getTokenStore().getUser() as CurrentUser | null);
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+
+  // Account deletion lives on the platform; open it in the system browser.
+  const openAccountSettings = () => {
+    const path = user?.id ? `/profiles/${user.id}/edit` : "/";
+    window.open(`${PLATFORM_ORIGIN}${path}`, "_blank");
+  };
 
   const onAvatarUploaded = (photoUrl?: string) => {
     const store = getTokenStore();
@@ -31,27 +35,6 @@ const Settings = () => {
     const updated = { ...current, photo_url: photoUrl };
     store.setUser(updated);
     setUser(updated as CurrentUser);
-  };
-
-  const deleteAccount = async () => {
-    setDeleting(true);
-    try {
-      const result = await authPost<{ success: boolean; errors?: string[] }>(
-        "account/deactivate", {},
-      );
-      if (result.success) {
-        // The server already revoked the tokens; clear the local session too.
-        getTokenStore().clear();
-        navigate("/login", { replace: true });
-      } else {
-        toast.error(result.errors?.join(", ") || "Couldn't delete your account");
-      }
-    } catch {
-      toast.error("Couldn't delete your account");
-    } finally {
-      setDeleting(false);
-      setDeleteOpen(false);
-    }
   };
 
   return (
@@ -100,10 +83,15 @@ const Settings = () => {
 
         <Typography sx={{ fontWeight: 700, fontSize: 15, mb: 1 }}>Delete account</Typography>
         <Typography sx={{ fontSize: 14, color: "#45454B", mb: 2 }}>
-          This deactivates your Swiss Monkey account, withdraws your job applications
-          and closes your conversations. You&apos;ll be signed out on all devices.
+          Account deletion is handled on the Swiss Monkey website. This opens your
+          account settings, where you can delete your account.
         </Typography>
-        <Button color="error" variant="outlined" onClick={() => setDeleteOpen(true)}>
+        <Button
+          color="error"
+          variant="outlined"
+          endIcon={<OpenInNewIcon />}
+          onClick={openAccountSettings}
+        >
           Delete account
         </Button>
       </Box>
@@ -115,22 +103,6 @@ const Settings = () => {
         fallback={initials(user?.name)}
         onUploaded={onAvatarUploaded}
       />
-
-      <Dialog open={deleteOpen} onClose={() => !deleting && setDeleteOpen(false)}>
-        <DialogTitle>Delete your account?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This can&apos;t be undone from the app. Your conversations will be closed and
-            any job applications withdrawn.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={deleteAccount} disabled={deleting}>
-            {deleting ? "Deleting…" : "Delete account"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };
