@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover exposes the safe-area-inset-* env() vars for the notch/home indicator;
+         maximum-scale + user-scalable=no stops iOS zooming when an input is focused. -->
+    <meta
+      name="viewport"
+      content="viewport-fit=cover, width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Swiss Monkey Messenger</title>
+    <style>
+      html, body, #root {
+        height: 100%;
+      }
+      body {
+        font-family: "Lato", sans-serif;
+        margin: 0;
+        /* Avoid rubber-band scroll behind fixed panes on iOS. */
+        overscroll-behavior: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

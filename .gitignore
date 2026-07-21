@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.*
+
+# Capacitor: the ios/ and android/ folders are committed, but their build
+# artifacts and the synced web bundle (public/) are generated.
+ios/App/Pods/
+ios/App/build/
+ios/App/App/public/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/public/
+android/local.properties
+android/.idea/
+.gradle/
