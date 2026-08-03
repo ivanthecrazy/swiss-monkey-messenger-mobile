@@ -23,6 +23,12 @@ declare module "@regimenthq/messenger-core" {
     handlers?: { onMention?: (m: any) => void; onCvExtraction?: (c: any) => void },
   ): () => void;
   export function fetchChats(page?: number, search?: Record<string, unknown>): Promise<any>;
+  export const TeamDialog: ComponentType<{
+    open: boolean;
+    onClose: () => void;
+    team?: any;
+    onSaved?: (chat: any) => void;
+  }>;
   export function triggerUnreadChatsLoadedEvent(count: number): void;
 }
 

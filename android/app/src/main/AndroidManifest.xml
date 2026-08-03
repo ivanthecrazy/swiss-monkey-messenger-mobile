@@ -20,6 +20,16 @@
             </intent-filter>
         </activity>
 
+        <!-- FCM: use the monochrome silhouette (not the launcher icon) as the
+             status-bar notification icon, tinted brand purple. Applies to
+             notifications the system builds from an FCM `notification` payload. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

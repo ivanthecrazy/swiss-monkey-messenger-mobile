@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tint applied to the monochrome status-bar notification icon. Brand purple (#5E00FF). -->
+    <color name="notification_color">#5E00FF</color>
+</resources>

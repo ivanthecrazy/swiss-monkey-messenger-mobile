@@ -4,6 +4,8 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import TuneIcon from "@mui/icons-material/Tune";
+import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 // Mirrors the web /admin/chats search box + filters.
 export type ChatSearch = {
@@ -15,18 +17,35 @@ export type ChatSearch = {
 };
 
 const FILTER_OPTIONS = ["All", "Participating", "Muted", "Favorite", "Announcements"];
-const TYPE_OPTIONS = ["All", "Engagement", "Support", "Job Assistant"];
+const TYPE_OPTIONS = ["All", "Engagement", "Support", "Job Assistant", "Organization Thread", "Team", "Team All"];
 const EMPTY_OPTIONS = ["Hide", "Show"];
 
 type Props = {
   isAdmin: boolean;
   value: ChatSearch;
   onChange: (next: ChatSearch) => void;
+  // Admin action rendered in the toolbar row next to the filters toggle.
+  onNewTeam?: () => void;
+  // Manual reload of the chat list. When set, a refresh button is shown; the icon
+  // spins while `refreshing` is true.
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 const filterSx = { flex: 1, minWidth: 120 };
 
-const ChatSearchBar = ({ isAdmin, value, onChange }: Props) => {
+// Bordered square icon button, shared by the toolbar actions so they read as one row.
+const toolbarButtonSx = {
+  flexShrink: 0,
+  border: "1px solid #EBEBF1",
+  borderRadius: "8px",
+  color: "#45454B",
+  "&:hover": { backgroundColor: "#F2EEFF" },
+};
+
+const ChatSearchBar = ({
+  isAdmin, value, onChange, onNewTeam, onRefresh, refreshing,
+}: Props) => {
   const [showFilters, setShowFilters] = useState(false);
   const set = (patch: Partial<ChatSearch>) => onChange({ ...value, ...patch });
 
@@ -55,23 +74,47 @@ const ChatSearchBar = ({ isAdmin, value, onChange }: Props) => {
             ),
           }}
         />
+        {onRefresh && (
+          <Tooltip title="Refresh">
+            <span>
+              <IconButton
+                onClick={onRefresh}
+                aria-label="Refresh"
+                disabled={refreshing}
+                sx={{
+                  ...toolbarButtonSx,
+                  "@keyframes spin": { to: { transform: "rotate(360deg)" } },
+                }}
+              >
+                <RefreshIcon
+                  fontSize="small"
+                  sx={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }}
+                />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
         {isAdmin && (
           <Tooltip title="Filters">
             <IconButton
               onClick={() => setShowFilters((s) => !s)}
               aria-label="Toggle filters"
               sx={{
-                flexShrink: 0,
-                border: "1px solid #EBEBF1",
-                borderRadius: "8px",
+                ...toolbarButtonSx,
                 color: showFilters ? "#5E00FF" : "#45454B",
                 backgroundColor: showFilters ? "#F2EEFF" : "transparent",
-                "&:hover": { backgroundColor: "#F2EEFF" },
               }}
             >
               <Badge color="primary" variant="dot" invisible={!filtersActive}>
                 <TuneIcon fontSize="small" />
               </Badge>
+            </IconButton>
+          </Tooltip>
+        )}
+        {isAdmin && onNewTeam && (
+          <Tooltip title="New team">
+            <IconButton onClick={onNewTeam} aria-label="New team" sx={toolbarButtonSx}>
+              <GroupAddIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}

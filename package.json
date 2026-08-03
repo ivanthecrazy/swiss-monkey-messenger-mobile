@@ -10,7 +10,7 @@
     "sync": "npm run build && cap sync",
     "ios": "npm run build && cap sync ios && cap open ios",
     "android": "npm run build && cap sync android && cap open android",
-    "assets": "python3 scripts/make-assets.py && npx --yes @capacitor/assets generate --ios --android"
+    "assets": "python3 scripts/make-assets.py && npx --yes @capacitor/assets generate --ios --android && python3 scripts/make-notification-icon.py"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^6.0.0",

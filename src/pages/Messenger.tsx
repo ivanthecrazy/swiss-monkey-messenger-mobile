@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, IconButton, Typography } from "@mui/material";
+import {
+  Box, Button, CircularProgress, IconButton, Typography,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
-  ChatProvider, ChatsList, Conversation, fetchChats, triggerUnreadChatsLoadedEvent,
+  ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats, triggerUnreadChatsLoadedEvent,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger } from "../messenger/bootstrap.ts";
-import { getTokenStore } from "@regimenthq/shell-auth";
+import { getTokenStore, authGet } from "@regimenthq/shell-auth";
 import UserBlock from "../components/UserBlock.tsx";
 import ChatSearchBar, { ChatSearch } from "../components/ChatSearchBar.tsx";
+import PullToRefresh from "../components/PullToRefresh.tsx";
 import { registerPush } from "../services/push.ts";
 
 // Single-pane mobile messenger: the chat list is full-screen, tapping a chat pushes
@@ -26,14 +29,59 @@ const Messenger = () => {
   searchRef.current = search;
 
   const [chats, setChats] = useState<any[]>([]);
+  // Ref mirror so openChat (invoked from the push callback's stale closure) can
+  // read the latest loaded chats.
+  const chatsRef = useRef(chats);
+  chatsRef.current = chats;
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const openChat = (chatId: number) => {
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [teamToEdit, setTeamToEdit] = useState<any>(null);
+
+  const markRead = (chatId: number) => setChats(
+    (prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: false } : c)),
+  );
+
+  // Open a chat by id. Fast path when it's already loaded; otherwise (e.g. a
+  // notification tap while the chat isn't in the list, or a cold start) fetch it
+  // on the fly, showing a loading state, then select it.
+  const openChat = async (chatId: number) => {
     setSelectedChatId(chatId);
-    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: false } : c)));
+
+    if (chatsRef.current.some((c) => c.id === chatId)) {
+      markRead(chatId);
+      return;
+    }
+
+    setOpeningChat(true);
+    try {
+      const data = await authGet(`chats/${chatId}`) as { chat?: any } | null;
+      const chat = data?.chat;
+      if (chat) {
+        setChats((prev) => (prev.some((c) => c.id === chat.id)
+          ? prev.map((c) => (c.id === chat.id ? { ...chat, unread: false } : c))
+          : [{ ...chat, unread: false }, ...prev]));
+      } else {
+        setSelectedChatId(null); // gone / no access — fall back to the list
+      }
+    } catch {
+      setSelectedChatId(null);
+    } finally {
+      setOpeningChat(false);
+    }
+  };
+
+  const onTeamSaved = (chat: any) => {
+    setChats((prev) => {
+      const exists = prev.some((c) => c.id === chat.id);
+      return exists ? prev.map((c) => (c.id === chat.id ? { ...c, ...chat } : c)) : [chat, ...prev];
+    });
+    setSelectedChatId(chat.id);
   };
 
   const loadChats = async (nextPage: number) => {
@@ -78,16 +126,28 @@ const Messenger = () => {
       setChats((prev) => {
         const existing = prev.find((c) => c.id === message.chat_id);
         if (!existing) return message.chat ? [message.chat, ...prev] : prev;
+        // Bump last_message_time so the chat surfaces to the top by recency (the
+        // list orders by recency, not unread). Mark unread unless it's open.
+        const now = new Date().toISOString();
         return prev.map((c) => (
-          c.id === message.chat_id && c.id !== selectedChatId ? { ...c, unread: true } : c
+          c.id === message.chat_id
+            ? { ...c, last_message_time: now, unread: c.id !== selectedChatId }
+            : c
         ));
       });
     };
+    const onRemoved = (e: any) => {
+      const { id } = e.detail;
+      setChats((prev) => prev.filter((c) => c.id !== id));
+      setSelectedChatId((cur) => (cur === id ? null : cur));
+    };
     window.addEventListener("newChatStarted", onNewChat);
     window.addEventListener("chatMessageReceived", onMessage);
+    window.addEventListener("chatRemoved", onRemoved);
     return () => {
       window.removeEventListener("newChatStarted", onNewChat);
       window.removeEventListener("chatMessageReceived", onMessage);
+      window.removeEventListener("chatRemoved", onRemoved);
     };
   }, [selectedChatId]);
 
@@ -96,6 +156,16 @@ const Messenger = () => {
     const el = e.currentTarget;
     if (el.scrollHeight - el.clientHeight - el.scrollTop > 150) return;
     await loadChats(page + 1);
+  };
+
+  // Manual reload: re-fetch the first page with the current filters.
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadChats(1);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const selectedChat = chats.find((c) => c.id === selectedChatId);
@@ -134,31 +204,80 @@ const Messenger = () => {
               <IconButton onClick={() => setSelectedChatId(null)} aria-label="Back" edge="start">
                 <ArrowBackIcon />
               </IconButton>
-              <Typography sx={{ fontWeight: 700, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Typography sx={{ flex: 1, fontWeight: 700, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {titleFor(selectedChat)}
               </Typography>
+              {isAdmin && selectedChat.kind === "team" && (
+                <Button size="small" onClick={() => { setTeamToEdit(selectedChat); setTeamDialogOpen(true); }}>
+                  Manage
+                </Button>
+              )}
             </Box>
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <Conversation chat={selectedChat} />
             </Box>
           </>
+        ) : openingChat ? (
+          // A chat is being opened (e.g. from a notification tap) but isn't loaded
+          // yet — show a spinner with a back affordance so the user is never stuck.
+          <>
+            <Box
+              sx={{
+                display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5,
+                borderBottom: "1px solid #EBEBF1", flexShrink: 0,
+              }}
+            >
+              <IconButton
+                onClick={() => { setSelectedChatId(null); setOpeningChat(false); }}
+                aria-label="Back"
+                edge="start"
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            </Box>
+            <Box sx={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", gap: 1.5, color: "#88888C",
+            }}
+            >
+              <CircularProgress size={28} />
+              <Typography sx={{ fontSize: 14 }}>Opening chat…</Typography>
+            </Box>
+          </>
         ) : (
           <>
             <UserBlock />
-            <ChatSearchBar isAdmin={isAdmin} value={search} onChange={setSearch} />
-            <Box
-              sx={{ flex: 1, overflowY: "auto", p: 2, "& .MuiList-root": { p: 0 } }}
+            <ChatSearchBar
+              isAdmin={isAdmin}
+              value={search}
+              onChange={setSearch}
+              onNewTeam={() => { setTeamToEdit(null); setTeamDialogOpen(true); }}
+              onRefresh={refresh}
+              refreshing={refreshing}
+            />
+            <PullToRefresh
+              onRefresh={refresh}
               onScroll={onListScroll}
+              sx={{ flex: 1, p: 2, "& .MuiList-root": { p: 0 } }}
             >
               <ChatsList
                 chats={chats}
                 selectedChatId={selectedChatId}
                 onChatSelected={(chat) => openChat(chat.id)}
               />
-            </Box>
+            </PullToRefresh>
           </>
         )}
       </Box>
+
+      {isAdmin && (
+        <TeamDialog
+          open={teamDialogOpen}
+          onClose={() => setTeamDialogOpen(false)}
+          team={teamToEdit}
+          onSaved={onTeamSaved}
+        />
+      )}
     </ChatProvider>
   );
 };
