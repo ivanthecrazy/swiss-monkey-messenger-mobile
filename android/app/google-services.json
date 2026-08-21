@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:95200348677:android:685298af7e691ed84faa6c",
+        "mobilesdk_app_id": "1:95200348677:android:5fc838ef577adc884faa6c",
         "android_client_info": {
-          "package_name": "io.swissmonkey.messenger"
+          "package_name": "io.swissmonkey.chat"
         }
       },
       "oauth_client": [],
