@@ -21,12 +21,16 @@ const DEFAULT_FLAGS = {
   enableMessagePins: true,
   hideMessageThreads: false,
   enableMentions: true,
+  // Per user, not ENV — so it has no safe default and starts off. The server
+  // decides in loadFeatureFlags() below, and configureMessenger notifies the UI.
+  enableTaskAssistant: false,
 };
 
 type ServerConfig = {
   enable_message_pins?: boolean;
   hide_message_threads?: boolean;
   enable_mentions?: boolean;
+  enable_task_assistant?: boolean;
 };
 
 // Pull the messenger feature flags from the platform (GET /api/config) so the
@@ -41,6 +45,9 @@ const loadFeatureFlags = async () => {
       enableMessagePins: cfg.enable_message_pins,
       hideMessageThreads: cfg.hide_message_threads === true,
       enableMentions: cfg.enable_mentions === true,
+      // Resolved for the signed-in user, so it must be read after login rather
+      // than baked into the build — two people on this same build can differ.
+      enableTaskAssistant: cfg.enable_task_assistant === true,
       // No org context in the desktop shell; only used for the web deep-link.
       currentOrganization: null,
     });

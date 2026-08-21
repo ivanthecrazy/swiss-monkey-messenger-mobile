@@ -24,7 +24,7 @@
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
     "@rails/actioncable": "^8.0.0",
-    "@regimenthq/messenger-core": "^0.1.0",
+    "@regimenthq/messenger-core": "^0.1.12",
     "@regimenthq/shell-auth": "^0.1.0",
     "axios": "^1.7.0",
     "dayjs": "^1.11.13",

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "io.swissmonkey.messenger",
+  appId: "io.swissmonkey.chat",
   appName: "Swiss Monkey Messenger",
   webDir: "dist",
   ios: {

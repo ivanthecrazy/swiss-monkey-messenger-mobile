@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "io.swissmonkey.messenger"
+    namespace "io.swissmonkey.chat"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.swissmonkey.messenger"
+        applicationId "io.swissmonkey.chat"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

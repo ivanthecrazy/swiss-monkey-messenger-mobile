@@ -4,7 +4,8 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
-  ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats, triggerUnreadChatsLoadedEvent,
+  AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
+  triggerUnreadChatsLoadedEvent, useAssistantTasks,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
@@ -43,6 +44,25 @@ const Messenger = () => {
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [teamToEdit, setTeamToEdit] = useState<any>(null);
 
+  // Open items we noticed in this user's conversations. On a single-pane phone the
+  // panel pushes over the list exactly like a conversation does, with the same back
+  // arrow. Off unless the user has the flag.
+  const assistantTasks = useAssistantTasks();
+  const [tasksOpen, setTasksOpen] = useState(false);
+  // Message to land on when a task is opened from the panel.
+  const [focusMessageId, setFocusMessageId] = useState<number | null>(null);
+
+  // Chats already marked read on the server this session. Conversation marks a chat
+  // read as it opens, which can overlap a list fetch still in flight — without this
+  // the response's stale unread: true would put the dot back on a chat just cleared.
+  // It matters most on the notification-tap path, where the two happen together.
+  const readChatIdsRef = useRef<Set<number>>(new Set());
+  const applyKnownReads = (chat: any) => (
+    readChatIdsRef.current.has(chat.id) ? { ...chat, unread: false } : chat
+  );
+
+  // Optimistic local echo only. Clearing it on the server belongs to Conversation,
+  // which knows the chat is actually open and on screen, and confirms via `chatRead`.
   const markRead = (chatId: number) => setChats(
     (prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: false } : c)),
   );
@@ -50,7 +70,12 @@ const Messenger = () => {
   // Open a chat by id. Fast path when it's already loaded; otherwise (e.g. a
   // notification tap while the chat isn't in the list, or a cold start) fetch it
   // on the fly, showing a loading state, then select it.
-  const openChat = async (chatId: number) => {
+  // `focus` is the message to land on, and defaults to none: without clearing it,
+  // picking a different chat afterwards would try to jump to a message id from the
+  // previous conversation and report it as missing.
+  const openChat = async (chatId: number, focus: number | null = null) => {
+    setTasksOpen(false);
+    setFocusMessageId(focus);
     setSelectedChatId(chatId);
 
     if (chatsRef.current.some((c) => c.id === chatId)) {
@@ -90,7 +115,8 @@ const Messenger = () => {
       const data = await fetchChats(nextPage, searchRef.current);
       if (!data.chats) return;
       triggerUnreadChatsLoadedEvent(data.total_unread);
-      setChats((prev) => (nextPage > 1 ? [...prev, ...data.chats] : data.chats));
+      const fetched = data.chats.map(applyKnownReads);
+      setChats((prev) => (nextPage > 1 ? [...prev, ...fetched] : fetched));
       setTotalPages(data.total_pages);
       setPage(nextPage);
     } finally {
@@ -123,30 +149,47 @@ const Messenger = () => {
     };
     const onMessage = (e: any) => {
       const { message } = e.detail;
+      // Only a chat that's open *and* on screen counts as read — Conversation clears
+      // it on the server under exactly that condition, and fires `chatRead` once the
+      // app is foregrounded again. A message arriving while the app is backgrounded
+      // (the normal state on a phone) must leave the dot on.
+      const seen = message.chat_id === selectedChatId && document.visibilityState !== "hidden";
+      if (!seen) readChatIdsRef.current.delete(message.chat_id);
+
       setChats((prev) => {
         const existing = prev.find((c) => c.id === message.chat_id);
         if (!existing) return message.chat ? [message.chat, ...prev] : prev;
         // Bump last_message_time so the chat surfaces to the top by recency (the
-        // list orders by recency, not unread). Mark unread unless it's open.
+        // list orders by recency, not unread).
         const now = new Date().toISOString();
         return prev.map((c) => (
           c.id === message.chat_id
-            ? { ...c, last_message_time: now, unread: c.id !== selectedChatId }
+            ? { ...c, last_message_time: now, unread: !seen }
             : c
         ));
       });
     };
+    // The server confirmed a chat is read (Conversation marks it on open, and again
+    // as messages arrive while it's on screen) — drop the dot to match.
+    const onChatRead = (e: any) => {
+      const { chatId } = e.detail;
+      readChatIdsRef.current.add(chatId);
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: false } : c)));
+    };
     const onRemoved = (e: any) => {
       const { id } = e.detail;
+      readChatIdsRef.current.delete(id);
       setChats((prev) => prev.filter((c) => c.id !== id));
       setSelectedChatId((cur) => (cur === id ? null : cur));
     };
     window.addEventListener("newChatStarted", onNewChat);
     window.addEventListener("chatMessageReceived", onMessage);
+    window.addEventListener("chatRead", onChatRead);
     window.addEventListener("chatRemoved", onRemoved);
     return () => {
       window.removeEventListener("newChatStarted", onNewChat);
       window.removeEventListener("chatMessageReceived", onMessage);
+      window.removeEventListener("chatRead", onChatRead);
       window.removeEventListener("chatRemoved", onRemoved);
     };
   }, [selectedChatId]);
@@ -169,6 +212,9 @@ const Messenger = () => {
   };
 
   const selectedChat = chats.find((c) => c.id === selectedChatId);
+  // Claims the screen as soon as the tab is opened, before the fetch lands, so it
+  // never flashes the list again first.
+  const showTasksPanel = tasksOpen && assistantTasks.enabled;
 
   const titleFor = (chat: any): string => {
     if (!chat) return "";
@@ -193,7 +239,29 @@ const Messenger = () => {
           pb: "env(safe-area-inset-bottom)",
         }}
       >
-        {selectedChat ? (
+        {showTasksPanel ? (
+          <>
+            <Box
+              sx={{
+                display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5,
+                borderBottom: "1px solid #EBEBF1", flexShrink: 0,
+              }}
+            >
+              <IconButton onClick={() => setTasksOpen(false)} aria-label="Back" edge="start">
+                <ArrowBackIcon />
+              </IconButton>
+            </Box>
+            <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              {assistantTasks.data && (
+                <AssistantTasksPanel
+                  data={assistantTasks.data}
+                  onOpenSource={(chatId, messageId) => openChat(chatId, messageId)}
+                  onTasksChanged={assistantTasks.onTasksChanged}
+                />
+              )}
+            </Box>
+          </>
+        ) : selectedChat ? (
           <>
             <Box
               sx={{
@@ -214,7 +282,7 @@ const Messenger = () => {
               )}
             </Box>
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-              <Conversation chat={selectedChat} />
+              <Conversation chat={selectedChat} focusMessageId={focusMessageId} />
             </Box>
           </>
         ) : openingChat ? (
@@ -264,6 +332,9 @@ const Messenger = () => {
                 chats={chats}
                 selectedChatId={selectedChatId}
                 onChatSelected={(chat) => openChat(chat.id)}
+                topItem={assistantTasks.topItem}
+                topItemSelected={tasksOpen}
+                onTopItemSelected={() => { setTasksOpen(true); setSelectedChatId(null); }}
               />
             </PullToRefresh>
           </>

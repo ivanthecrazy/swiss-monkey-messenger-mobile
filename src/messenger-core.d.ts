@@ -8,13 +8,63 @@ declare module "@regimenthq/messenger-core" {
     chats: any[];
     onChatSelected: (chat: any) => void;
     selectedChatId: number | null;
+    // Optional pinned row above the list (the task assistant tab). Null hides it.
+    topItem?: { title?: string; subtitle?: string } | null;
+    topItemSelected?: boolean;
+    onTopItemSelected?: () => void;
   }>;
   export const Conversation: ComponentType<{
     chat: any;
     onMessageReceived?: (message: any) => void;
     allowReopen?: boolean;
     hideZoomMeetingButton?: boolean;
+    // Scrolls to this message and flashes it once the timeline has loaded,
+    // fetching older pages if it isn't on the first one.
+    focusMessageId?: number | null;
   }>;
+
+  export type AssistantTask = {
+    id: number;
+    signal: string;
+    description: string;
+    detected_at: string;
+    due_at: string | null;
+    chat_id: number;
+    source_message_id: number;
+    group: { key: string; label: string; kind: string };
+  };
+
+  export type AssistantTasksData = {
+    enabled: boolean;
+    tasks: AssistantTask[];
+    open_count: number;
+    signals: { key: string; summary: string }[];
+    limits: string[];
+    copy: {
+      tab_title: string;
+      explainer_title: string;
+      empty_title: string;
+      empty_body: string;
+    };
+  };
+
+  // All wording arrives in `data` from the server — never hardcode it in a shell,
+  // since the signal list reflects what is actually running for that user.
+  export const AssistantTasksPanel: ComponentType<{
+    data: AssistantTasksData;
+    onOpenSource: (chatId: number, messageId: number) => void;
+    onTasksChanged: (remaining: AssistantTask[]) => void;
+  }>;
+
+  export function useAssistantTasks(): {
+    enabled: boolean;
+    data: AssistantTasksData | null;
+    tasks: AssistantTask[];
+    openCount: number;
+    topItem: { title?: string; subtitle?: string } | null;
+    reload: () => Promise<void>;
+    onTasksChanged: (remaining: AssistantTask[]) => void;
+  };
 
   export function configureChatApi(opts: { baseURL?: string; token?: string }): void;
   export function configureMessenger(config: Record<string, unknown>): void;
