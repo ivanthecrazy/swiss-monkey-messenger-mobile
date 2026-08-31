@@ -56,15 +56,30 @@ const loadFeatureFlags = async () => {
   }
 };
 
+let clientConfigured = false;
+
+// Point the REST client at /api with the token and apply the default flags. Split
+// out of startMessenger and idempotent so it can be called during the Messenger's
+// render — the self-loading messenger-core components (GroupedChatsList,
+// NotificationsList, FilesList) fetch in their mount effects, which run BEFORE the
+// parent's mount effect. Configuring only in startMessenger would leave that first
+// request pointing at the app origin (capacitor://localhost) instead of /api.
+export const ensureMessengerClient = () => {
+  if (clientConfigured) return;
+  const token = getTokenStore().getToken();
+  if (!token) return;
+  configureChatApi({ baseURL: API_BASE, token });
+  // Apply defaults immediately (getters never read undefined); startMessenger's
+  // loadFeatureFlags then refines them from the server.
+  configureMessenger({ ...DEFAULT_FLAGS, currentOrganization: null });
+  clientConfigured = true;
+};
+
 export const startMessenger = () => {
   const token = getTokenStore().getToken();
   if (!token) return;
 
-  configureChatApi({ baseURL: API_BASE, token });
-
-  // Apply defaults immediately (getters never read undefined), then refine from
-  // the server so the desktop tracks the platform's actual feature flags.
-  configureMessenger({ ...DEFAULT_FLAGS, currentOrganization: null });
+  ensureMessengerClient();
   loadFeatureFlags();
 
   cable = createConsumer(`${CABLE_URL}?token=${encodeURIComponent(token)}`);
@@ -81,4 +96,7 @@ export const stopMessenger = () => {
   if (cable) cable.disconnect();
   unsubscribe = null;
   cable = null;
+  // A different user may sign in next; force a reconfigure so the client picks up
+  // the new token.
+  clientConfigured = false;
 };

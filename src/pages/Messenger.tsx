@@ -1,78 +1,76 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import {
-  Box, Button, CircularProgress, IconButton, Typography,
+  Box, Button, CircularProgress, IconButton, InputBase, Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseRoundedIcon from "@mui/icons-material/Close";
+import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
+  GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList,
 } from "@regimenthq/messenger-core";
-import { startMessenger, stopMessenger } from "../messenger/bootstrap.ts";
+import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
 import UserBlock from "../components/UserBlock.tsx";
-import ChatSearchBar, { ChatSearch } from "../components/ChatSearchBar.tsx";
 import PullToRefresh from "../components/PullToRefresh.tsx";
+import BottomNav, { MessengerTab } from "../components/BottomNav.tsx";
 import { registerPush } from "../services/push.ts";
+import { PLATFORM_ORIGIN } from "../services/config.ts";
 
-// Single-pane mobile messenger: the chat list is full-screen, tapping a chat pushes
-// the conversation over it, and the back arrow returns to the list. Data-loading
-// (search, pagination, live window events) mirrors the desktop shell.
+// Single-pane mobile messenger. A bottom nav switches between the Chats (grouped
+// list + search), Alerts, and Files tabs; tapping a chat pushes the conversation
+// over everything, and the back arrow returns. The grouped list, alerts, search,
+// and files are shared components from messenger-core — the same code the desktop
+// shell runs — so the two stay in sync.
 const Messenger = () => {
+  // Configure the API client now, during render — the self-loading messenger-core
+  // components fetch in their mount effects, which fire before this component's
+  // mount effect. Doing it only in startMessenger (an effect) would send that first
+  // /chats/grouped request to the app origin instead of /api. Idempotent.
+  ensureMessengerClient();
+
   const currentUser = getTokenStore().getUser();
+  const currentUserId = (currentUser as { id?: number } | null)?.id;
   const isAdmin = Boolean((currentUser as { admin?: boolean } | null)?.admin);
 
-  const [search, setSearch] = useState<ChatSearch>(
-    isAdmin
-      ? { q: "", chat_filter: "All", chat_type: "", unread_only: false, empty: "Hide" }
-      : { q: "" },
-  );
-  const searchRef = useRef(search);
-  searchRef.current = search;
+  const [tab, setTab] = useState<MessengerTab>("chats");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [alertsUnread, setAlertsUnread] = useState(0);
+  // Bumped to force the grouped list to refetch (pull-to-refresh).
+  const [groupRefresh, setGroupRefresh] = useState(0);
 
+  // Working set behind the open conversation. The grouped list and search fetch
+  // their own data; this list just resolves the selected chat (and is warmed with
+  // the user's recent chats so opening one is instant).
   const [chats, setChats] = useState<any[]>([]);
-  // Ref mirror so openChat (invoked from the push callback's stale closure) can
-  // read the latest loaded chats.
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [teamToEdit, setTeamToEdit] = useState<any>(null);
 
-  // Open items we noticed in this user's conversations. On a single-pane phone the
-  // panel pushes over the list exactly like a conversation does, with the same back
-  // arrow. Off unless the user has the flag.
   const assistantTasks = useAssistantTasks();
   const [tasksOpen, setTasksOpen] = useState(false);
-  // Message to land on when a task is opened from the panel.
   const [focusMessageId, setFocusMessageId] = useState<number | null>(null);
 
-  // Chats already marked read on the server this session. Conversation marks a chat
-  // read as it opens, which can overlap a list fetch still in flight — without this
-  // the response's stale unread: true would put the dot back on a chat just cleared.
-  // It matters most on the notification-tap path, where the two happen together.
+  // Chats already marked read on the server this session (see the desktop shell for
+  // the full rationale) — keeps a stale unread:true from a list fetch in flight from
+  // putting the dot back on a chat just cleared.
   const readChatIdsRef = useRef<Set<number>>(new Set());
   const applyKnownReads = (chat: any) => (
     readChatIdsRef.current.has(chat.id) ? { ...chat, unread: false } : chat
   );
 
-  // Optimistic local echo only. Clearing it on the server belongs to Conversation,
-  // which knows the chat is actually open and on screen, and confirms via `chatRead`.
   const markRead = (chatId: number) => setChats(
     (prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: false } : c)),
   );
 
-  // Open a chat by id. Fast path when it's already loaded; otherwise (e.g. a
-  // notification tap while the chat isn't in the list, or a cold start) fetch it
-  // on the fly, showing a loading state, then select it.
-  // `focus` is the message to land on, and defaults to none: without clearing it,
-  // picking a different chat afterwards would try to jump to a message id from the
-  // previous conversation and report it as missing.
+  // Open a chat by id. Fast path when it's already in the working set; otherwise
+  // fetch it on the fly. `focus` is the message to land on.
   const openChat = async (chatId: number, focus: number | null = null) => {
     setTasksOpen(false);
     setFocusMessageId(focus);
@@ -92,7 +90,7 @@ const Messenger = () => {
           ? prev.map((c) => (c.id === chat.id ? { ...chat, unread: false } : c))
           : [{ ...chat, unread: false }, ...prev]));
       } else {
-        setSelectedChatId(null); // gone / no access — fall back to the list
+        setSelectedChatId(null);
       }
     } catch {
       setSelectedChatId(null);
@@ -109,35 +107,31 @@ const Messenger = () => {
     setSelectedChatId(chat.id);
   };
 
-  const loadChats = async (nextPage: number) => {
-    setLoading(true);
-    try {
-      const data = await fetchChats(nextPage, searchRef.current);
-      if (!data.chats) return;
-      triggerUnreadChatsLoadedEvent(data.total_unread);
-      const fetched = data.chats.map(applyKnownReads);
-      setChats((prev) => (nextPage > 1 ? [...prev, ...fetched] : fetched));
-      setTotalPages(data.total_pages);
-      setPage(nextPage);
-    } finally {
-      setLoading(false);
-    }
+  // Warm the working set + drive the unread badge. Merges (doesn't replace) so a
+  // chat openChat added that isn't in this recent page is never dropped.
+  const loadWorkingSet = async () => {
+    const data = await fetchChats(1, { q: "" });
+    if (!data?.chats) return;
+    triggerUnreadChatsLoadedEvent(data.total_unread);
+    const fetched = data.chats.map(applyKnownReads);
+    setChats((prev) => {
+      const ids = new Set(fetched.map((c: any) => c.id));
+      return [...fetched, ...prev.filter((c) => !ids.has(c.id))];
+    });
+  };
+
+  const refresh = async () => {
+    setGroupRefresh((n) => n + 1);
+    await loadWorkingSet();
   };
 
   useEffect(() => {
     startMessenger();
-    // Register for push once we're authenticated; tapping a notification opens
-    // its chat. No-ops in the browser.
     registerPush((chatId) => openChat(chatId));
+    loadWorkingSet();
     return () => stopMessenger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => loadChats(1), 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
 
   useEffect(() => {
     const onNewChat = (e: any) => {
@@ -149,28 +143,17 @@ const Messenger = () => {
     };
     const onMessage = (e: any) => {
       const { message } = e.detail;
-      // Only a chat that's open *and* on screen counts as read — Conversation clears
-      // it on the server under exactly that condition, and fires `chatRead` once the
-      // app is foregrounded again. A message arriving while the app is backgrounded
-      // (the normal state on a phone) must leave the dot on.
       const seen = message.chat_id === selectedChatId && document.visibilityState !== "hidden";
       if (!seen) readChatIdsRef.current.delete(message.chat_id);
-
       setChats((prev) => {
         const existing = prev.find((c) => c.id === message.chat_id);
         if (!existing) return message.chat ? [message.chat, ...prev] : prev;
-        // Bump last_message_time so the chat surfaces to the top by recency (the
-        // list orders by recency, not unread).
         const now = new Date().toISOString();
         return prev.map((c) => (
-          c.id === message.chat_id
-            ? { ...c, last_message_time: now, unread: !seen }
-            : c
+          c.id === message.chat_id ? { ...c, last_message_time: now, unread: !seen } : c
         ));
       });
     };
-    // The server confirmed a chat is read (Conversation marks it on open, and again
-    // as messages arrive while it's on screen) — drop the dot to match.
     const onChatRead = (e: any) => {
       const { chatId } = e.detail;
       readChatIdsRef.current.add(chatId);
@@ -194,35 +177,31 @@ const Messenger = () => {
     };
   }, [selectedChatId]);
 
-  const onListScroll = async (e: React.UIEvent<HTMLDivElement>) => {
-    if (totalPages < 2 || page >= totalPages || loading) return;
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.clientHeight - el.scrollTop > 150) return;
-    await loadChats(page + 1);
-  };
-
-  // Manual reload: re-fetch the first page with the current filters.
-  const refresh = async () => {
-    setRefreshing(true);
-    try {
-      await loadChats(1);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const selectedChat = chats.find((c) => c.id === selectedChatId);
-  // Claims the screen as soon as the tab is opened, before the fetch lands, so it
-  // never flashes the list again first.
   const showTasksPanel = tasksOpen && assistantTasks.enabled;
 
   const titleFor = (chat: any): string => {
     if (!chat) return "";
-    if (chat.display_name) return chat.display_name; // org thread / announcements / job assistant
+    if (chat.display_name) return chat.display_name;
     if (chat.support) return "Swiss Monkey Support";
-    const other = chat.users?.find((u: any) => u.id !== (currentUser as { id?: number } | null)?.id);
+    const other = chat.users?.find((u: any) => u.id !== currentUserId);
     return other?.name || chat.job?.title || "Chat";
   };
+
+  const openPlatformUrl = (path: string) => { window.open(`${PLATFORM_ORIGIN}${path}`, "_blank"); };
+  const openFile = (url: string) => { window.open(url, "_blank"); };
+
+  const backHeader = (onBack: () => void, title?: string, right?: ReactNode) => (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5, borderBottom: "1px solid #EBEBF1", flexShrink: 0 }}>
+      <IconButton onClick={onBack} aria-label="Back" edge="start"><ArrowBackIcon /></IconButton>
+      {/* flex:1 so it also acts as a spacer, keeping `right` aligned to the end when
+          there's no title. */}
+      <Typography sx={{ flex: 1, fontWeight: 700, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {title}
+      </Typography>
+      {right}
+    </Box>
+  );
 
   return (
     <ChatProvider currentUser={currentUser}>
@@ -234,23 +213,13 @@ const Messenger = () => {
           overflow: "hidden",
           boxSizing: "border-box",
           bgcolor: "#FFFFFF",
-          // Keep content clear of the notch / home indicator.
           pt: "env(safe-area-inset-top)",
           pb: "env(safe-area-inset-bottom)",
         }}
       >
         {showTasksPanel ? (
           <>
-            <Box
-              sx={{
-                display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5,
-                borderBottom: "1px solid #EBEBF1", flexShrink: 0,
-              }}
-            >
-              <IconButton onClick={() => setTasksOpen(false)} aria-label="Back" edge="start">
-                <ArrowBackIcon />
-              </IconButton>
-            </Box>
+            {backHeader(() => setTasksOpen(false))}
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               {assistantTasks.data && (
                 <AssistantTasksPanel
@@ -263,51 +232,24 @@ const Messenger = () => {
           </>
         ) : selectedChat ? (
           <>
-            <Box
-              sx={{
-                display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5,
-                borderBottom: "1px solid #EBEBF1", flexShrink: 0,
-              }}
-            >
-              <IconButton onClick={() => setSelectedChatId(null)} aria-label="Back" edge="start">
-                <ArrowBackIcon />
-              </IconButton>
-              <Typography sx={{ flex: 1, fontWeight: 700, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {titleFor(selectedChat)}
-              </Typography>
-              {isAdmin && selectedChat.kind === "team" && (
+            {backHeader(
+              () => setSelectedChatId(null),
+              titleFor(selectedChat),
+              isAdmin && selectedChat.kind === "team" ? (
                 <Button size="small" onClick={() => { setTeamToEdit(selectedChat); setTeamDialogOpen(true); }}>
                   Manage
                 </Button>
-              )}
-            </Box>
+              ) : undefined,
+            )}
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-              <Conversation chat={selectedChat} focusMessageId={focusMessageId} />
+              {/* Title lives in the back bar above; hide the Conversation's own. */}
+              <Conversation chat={selectedChat} focusMessageId={focusMessageId} hideTitle />
             </Box>
           </>
         ) : openingChat ? (
-          // A chat is being opened (e.g. from a notification tap) but isn't loaded
-          // yet — show a spinner with a back affordance so the user is never stuck.
           <>
-            <Box
-              sx={{
-                display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5,
-                borderBottom: "1px solid #EBEBF1", flexShrink: 0,
-              }}
-            >
-              <IconButton
-                onClick={() => { setSelectedChatId(null); setOpeningChat(false); }}
-                aria-label="Back"
-                edge="start"
-              >
-                <ArrowBackIcon />
-              </IconButton>
-            </Box>
-            <Box sx={{
-              flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
-              justifyContent: "center", gap: 1.5, color: "#88888C",
-            }}
-            >
+            {backHeader(() => { setSelectedChatId(null); setOpeningChat(false); })}
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1.5, color: "#88888C" }}>
               <CircularProgress size={28} />
               <Typography sx={{ fontSize: 14 }}>Opening chat…</Typography>
             </Box>
@@ -315,28 +257,85 @@ const Messenger = () => {
         ) : (
           <>
             <UserBlock />
-            <ChatSearchBar
-              isAdmin={isAdmin}
-              value={search}
-              onChange={setSearch}
-              onNewTeam={() => { setTeamToEdit(null); setTeamDialogOpen(true); }}
-              onRefresh={refresh}
-              refreshing={refreshing}
-            />
-            <PullToRefresh
-              onRefresh={refresh}
-              onScroll={onListScroll}
-              sx={{ flex: 1, p: 2, "& .MuiList-root": { p: 0 } }}
-            >
-              <ChatsList
-                chats={chats}
-                selectedChatId={selectedChatId}
-                onChatSelected={(chat) => openChat(chat.id)}
-                topItem={assistantTasks.topItem}
-                topItemSelected={tasksOpen}
-                onTopItemSelected={() => { setTasksOpen(true); setSelectedChatId(null); }}
-              />
-            </PullToRefresh>
+            <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              {tab === "chats" && (
+                <>
+                  {/* Search + (admin) new team */}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, pt: 1, pb: 0.5 }}>
+                    <Box sx={{ flex: 1, height: 40, display: "flex", alignItems: "center", gap: "8px", backgroundColor: "#FDFDFE", border: "1px solid #EBEBF1", borderRadius: "8px", px: "12px" }}>
+                      <SearchIcon sx={{ fontSize: 18, color: "#88888C" }} />
+                      <InputBase
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search chats & messages…"
+                        sx={{ flex: 1, fontFamily: "Lato", fontSize: 15, "& input": { p: 0 } }}
+                      />
+                      {searchQuery && (
+                        <IconButton onClick={() => setSearchQuery("")} size="small" aria-label="Clear search" sx={{ p: "2px" }}>
+                          <CloseRoundedIcon sx={{ fontSize: 16, color: "#88888C" }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                    {isAdmin && (
+                      <IconButton
+                        onClick={() => { setTeamToEdit(null); setTeamDialogOpen(true); }}
+                        aria-label="New team"
+                        sx={{ width: 40, height: 40, flexShrink: 0, border: "1px solid #EBEBF1", borderRadius: "8px", color: "#45454B" }}
+                      >
+                        <GroupAddIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+
+                  {searchQuery.trim() ? (
+                    <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                      <SearchResultsPanel
+                        query={searchQuery}
+                        currentUser={currentUser}
+                        onOpenChat={(chatId, messageId) => openChat(chatId, messageId ?? null)}
+                      />
+                    </Box>
+                  ) : (
+                    <PullToRefresh onRefresh={refresh} sx={{ flex: 1, p: 2, "& .MuiList-root": { p: 0 } }}>
+                      {assistantTasks.topItem && (
+                        <ChatsList
+                          chats={[]}
+                          selectedChatId={selectedChatId}
+                          onChatSelected={(chat) => openChat(chat.id)}
+                          topItem={assistantTasks.topItem}
+                          topItemSelected={tasksOpen}
+                          onTopItemSelected={() => { setTasksOpen(true); setSelectedChatId(null); }}
+                        />
+                      )}
+                      <GroupedChatsList
+                        currentUser={currentUser}
+                        selectedChatId={selectedChatId}
+                        onChatSelected={(chat) => openChat(chat.id)}
+                        refreshSignal={groupRefresh}
+                      />
+                    </PullToRefresh>
+                  )}
+                </>
+              )}
+
+              {tab === "alerts" && (
+                <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
+                  <NotificationsList
+                    currentUserId={currentUserId}
+                    onOpenChat={(chatId, messageId) => openChat(chatId, messageId ?? null)}
+                    onOpenUrl={openPlatformUrl}
+                    onUnreadChange={setAlertsUnread}
+                  />
+                </Box>
+              )}
+
+              {tab === "files" && (
+                <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
+                  <FilesList onOpenUrl={openFile} />
+                </Box>
+              )}
+            </Box>
+            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} />
           </>
         )}
       </Box>

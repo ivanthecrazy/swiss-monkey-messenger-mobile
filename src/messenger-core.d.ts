@@ -21,6 +21,8 @@ declare module "@regimenthq/messenger-core" {
     // Scrolls to this message and flashes it once the timeline has loaded,
     // fetching older pages if it isn't on the first one.
     focusMessageId?: number | null;
+    // Suppress the Conversation's own header title (the shell shows it elsewhere).
+    hideTitle?: boolean;
   }>;
 
   export type AssistantTask = {
@@ -80,6 +82,37 @@ declare module "@regimenthq/messenger-core" {
     onSaved?: (chat: any) => void;
   }>;
   export function triggerUnreadChatsLoadedEvent(count: number): void;
+
+  // Grouped chat list (announcements / org threads / teams / support) + Contact
+  // support button. Self-contained: fetches /chats/grouped and refetches on events.
+  export const GroupedChatsList: ComponentType<{
+    currentUser: unknown;
+    selectedChatId: number | null;
+    onChatSelected: (chat: any) => void;
+    refreshSignal?: number;
+  }>;
+
+  // The Alerts inbox. Navigation is delegated to the host.
+  export const NotificationsList: ComponentType<{
+    currentUserId?: number;
+    onOpenChat?: (chatId: number, messageId?: number) => void;
+    onOpenUrl?: (path: string) => void;
+    onUnreadChange?: (count: number) => void;
+    hideHeader?: boolean;
+  }>;
+
+  // Tabbed search results (Conversations + Messages). Host owns the input.
+  export const SearchResultsPanel: ComponentType<{
+    query: string;
+    currentUser: unknown;
+    onOpenChat?: (chatId: number, messageId?: number) => void;
+  }>;
+
+  // "All Files" across the user's conversations. Downloads delegated to the host.
+  export const FilesList: ComponentType<{
+    onOpenUrl?: (url: string) => void;
+    hideHeader?: boolean;
+  }>;
 }
 
 declare module "@rails/actioncable" {
