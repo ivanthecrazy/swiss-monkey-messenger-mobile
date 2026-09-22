@@ -53,14 +53,23 @@ The dev Rails server must allow the Capacitor origin for ActionCable
 - App icons + splash screens for both platforms.
 
 ## Icons & splash
-Source images live in `assets/` and are generated from `scripts/make-assets.py`
-(brand purple + the chat-bubble mark, matching the desktop app):
+The mark is the Swiss Monkey monkey, white on brand purple. Two masters in
+`scripts/` are the only hand-made art — the vector mark (platform repo,
+`public/logo_with_text.svg`) rasterised at 2048px, white with an alpha channel:
+
+| master | used for |
+| --- | --- |
+| `monkey-mark.png` | the whole monkey — app icons and splash |
+| `monkey-head.png` | just the head, cut at the shoulders — the notification icon, where the tail would disappear at 24dp |
+
+`scripts/make-assets.py` places those into the source images in `assets/`:
 
 | file | used for |
 | --- | --- |
-| `icon-only.png` | iOS app icon — full-bleed, no alpha (the OS applies the squircle mask) |
-| `icon-foreground.png` / `icon-background.png` | Android adaptive icon layers |
+| `icon-only.png` | iOS app icon — full-bleed, no alpha (the OS applies the squircle mask). Zoomed, so the tail runs off the left edge and the body off the bottom |
+| `icon-foreground.png` / `icon-background.png` | Android adaptive icon layers. The whole monkey, sized to the 66dp safe zone, since the launcher masks the icon to a circle/squircle |
 | `splash.png` / `splash-dark.png` | launch screens |
+| `../icons/icon-*.webp` | plain square icons for web/PWA use |
 
 Regenerate everything (source images + all platform sizes) with:
 ```bash

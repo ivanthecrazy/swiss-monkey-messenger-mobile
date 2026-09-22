@@ -1,82 +1,92 @@
 """Generate the source icon/splash assets for @capacitor/assets.
 
+The mark is the Swiss Monkey monkey, white on brand purple. `monkey-mark.png`
+next to this script is the master: the vector mark (from the platform repo's
+`public/logo_with_text.svg`) rasterised at 2048px, white with an alpha channel
+and cropped to the glyph. Everything below is a placement of that one master, so
+every size stays crisp and the family stays consistent.
+
 Produces (in assets/):
-  icon-only.png        1024  full-bleed purple + white chat bubble  -> iOS (OS masks it)
-  icon-foreground.png  1024  transparent + bubble in the adaptive safe zone -> Android
-  icon-background.png  1024  solid purple                            -> Android
-  splash.png           2732  purple with a centered bubble
+  icon-only.png        1024  full-bleed purple + the mark, zoomed  -> iOS (OS masks it)
+  icon-foreground.png  1024  transparent + the whole mark in the adaptive safe zone -> Android
+  icon-background.png  1024  solid purple                          -> Android
+  splash.png           2732  purple with the centred mark
   splash-dark.png      2732  same (the brand purple reads fine in dark mode)
+  ../icons/icon-*.webp       square icons for web/PWA use
 
 Then: npx @capacitor/assets generate
 """
 import os
-from PIL import Image, ImageDraw
+from PIL import Image
 
 PURPLE = (94, 0, 255, 255)
-WHITE = (255, 255, 255, 255)
-S = 4  # supersample factor, downscaled at the end for smooth edges
+CLEAR = (0, 0, 0, 0)
+SS = 2  # supersample factor, downscaled at the end for smooth edges
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+OUT = os.path.join(ROOT, "assets")
+ICONS = os.path.join(ROOT, "icons")
+
+MARK = Image.open(os.path.join(HERE, "monkey-mark.png")).convert("RGBA")
+MARK_ASPECT = MARK.height / MARK.width
+
+# --- Framing --------------------------------------------------------------
+# App icon: the supplied artwork is zoomed in, so the tail runs off the left
+# edge and the body off the bottom. Fractions of the canvas, mark bbox.
+ICON_W, ICON_X, ICON_Y = 0.973, -0.088, 0.137
+
+# Android adaptive foreground: nothing may bleed, because the launcher masks the
+# icon inside the middle 72dp of the 108dp layer and only the middle 66dp is
+# guaranteed to survive. @capacitor/assets insets both layers by 16.7%, so this
+# image *is* that 72dp square. The mark's smallest enclosing circle is r = 0.5343w
+# around (0.5125w, 0.5162w); sizing it to 95% of the 66dp safe circle and centring
+# that circle keeps the whole monkey clear of any mask shape, with a little air.
+FG_W = 0.95 * (33 / 72) / 0.5343
+FG_X, FG_Y = 0.5 - 0.5125 * FG_W, 0.5 - 0.5162 * FG_W
+
+# Splash: small and centred, since it gets cropped to each device's aspect ratio.
+SPLASH_W = 0.26
+
+
+def canvas(size, bg, mark_w, mark_x, mark_y):
+    """`size`px square of `bg` with the mark `mark_w` wide at (`mark_x`, `mark_y`).
+    All three mark values are fractions of the canvas; the position is its top-left."""
+    img = Image.new("RGBA", (size * SS, size * SS), bg)
+    w = round(size * SS * mark_w)
+    mark = MARK.resize((w, round(w * MARK_ASPECT)), Image.LANCZOS)
+    img.alpha_composite(mark, (round(size * SS * mark_x), round(size * SS * mark_y)))
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def centred(size, bg, mark_w):
+    h = mark_w * MARK_ASPECT
+    return canvas(size, bg, mark_w, (1 - mark_w) / 2, (1 - h) / 2)
+
+
+def save(img, path):
+    img.save(path)
+    print("wrote", os.path.relpath(path, ROOT))
+
+
 os.makedirs(OUT, exist_ok=True)
 
-
-def draw_bubble(d, cx, cy, bw):
-    """White chat bubble with three purple dots, centred on (cx, cy), `bw` wide.
-    Ratios match the desktop app icon so the family stays consistent."""
-    def s(v):
-        return int(round(v * S))
-
-    bh = bw * 0.767
-    bx0, by0 = cx - bw / 2, cy - bh / 2 - bw * 0.03
-    bx1, by1 = bx0 + bw, by0 + bh
-    d.rounded_rectangle([s(bx0), s(by0), s(bx1), s(by1)], radius=s(bh * 0.30), fill=WHITE)
-
-    # tail at the bottom-left, pointing down
-    tail_x = bx0 + bw * 0.26
-    d.polygon(
-        [
-            (s(tail_x), s(by1 - bh * 0.10)),
-            (s(tail_x + bw * 0.20), s(by1 - bh * 0.10)),
-            (s(tail_x - bw * 0.02), s(by1 + bh * 0.22)),
-        ],
-        fill=WHITE,
-    )
-
-    # three dots
-    r = bw * 0.0617
-    gap = bw * 0.225
-    dcy = (by0 + by1) / 2
-    for i in (-1, 0, 1):
-        dcx = cx + i * gap
-        d.ellipse([s(dcx - r), s(dcy - r), s(dcx + r), s(dcy + r)], fill=PURPLE)
-
-
-def canvas(size, bg):
-    img = Image.new("RGBA", (size * S, size * S), bg)
-    return img, ImageDraw.Draw(img)
-
-
-def save(img, size, name):
-    img.resize((size, size), Image.LANCZOS).save(os.path.join(OUT, name))
-    print("wrote", name)
-
-
 # --- iOS: full-bleed, no transparency (iOS rounds it) ---
-img, d = canvas(1024, PURPLE)
-draw_bubble(d, 512, 512, 1024 * 0.56)
-save(img, 1024, "icon-only.png")
+icon = canvas(1024, PURPLE, ICON_W, ICON_X, ICON_Y)
+save(icon, os.path.join(OUT, "icon-only.png"))
 
-# --- Android adaptive foreground: transparent, glyph inside the safe zone (~66%) ---
-img, d = canvas(1024, (0, 0, 0, 0))
-draw_bubble(d, 512, 512, 1024 * 0.46)
-save(img, 1024, "icon-foreground.png")
+# --- Android adaptive foreground: transparent, whole mark inside the safe zone ---
+save(canvas(1024, CLEAR, FG_W, FG_X, FG_Y), os.path.join(OUT, "icon-foreground.png"))
 
 # --- Android adaptive background: solid brand purple ---
-img, _ = canvas(1024, PURPLE)
-save(img, 1024, "icon-background.png")
+save(Image.new("RGBA", (1024, 1024), PURPLE), os.path.join(OUT, "icon-background.png"))
 
 # --- Splash: logo well inside the centre, since it gets cropped per aspect ratio ---
+splash = centred(2732, PURPLE, SPLASH_W)
 for name in ("splash.png", "splash-dark.png"):
-    img, d = canvas(2732, PURPLE)
-    draw_bubble(d, 1366, 1366, 2732 * 0.22)
-    save(img, 2732, name)
+    save(splash, os.path.join(OUT, name))
+
+# --- Plain square icons (web/PWA), same framing as the iOS icon ---
+if os.path.isdir(ICONS):
+    for size in (48, 72, 96, 128, 192, 256, 512):
+        save(icon.resize((size, size), Image.LANCZOS), os.path.join(ICONS, f"icon-{size}.webp"))

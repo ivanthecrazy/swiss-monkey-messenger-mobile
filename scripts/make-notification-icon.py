@@ -5,19 +5,21 @@ the alpha channel, discards color, and tints the opaque pixels with
 `default_notification_color`. A full-color launcher icon therefore shows up as a
 flat white square — hence a dedicated silhouette.
 
-We draw the same chat bubble as the app icon, but as a solid white shape with the
-three dots PUNCHED OUT (transparent) so they read as holes in the silhouette.
+The whole monkey is too fine to read at 24dp (the tail all but disappears), so
+this uses `monkey-head.png`: the head of the same mark, cut at the shoulders.
+It is already a silhouette with the face punched out — eyes, nose and mouth are
+transparent, so they read as holes once Android tints the rest.
 
 Writes android/app/src/main/res/drawable-{density}/ic_stat_notification.png.
 @capacitor/assets does NOT handle notification icons, so this is separate from
 make-assets.py and is safe to re-run.
 """
 import os
-from PIL import Image, ImageDraw
+from PIL import Image
 
-WHITE = (255, 255, 255, 255)
 CLEAR = (0, 0, 0, 0)
-S = 8  # supersample factor for smooth edges/holes
+SS = 8  # supersample factor for smooth edges/holes
+FILL = 0.92  # fraction of the icon the head spans, leaving ~1dp breathing room
 
 # Android status-bar icon sizes (dp == px at each density's baseline).
 DENSITIES = {
@@ -28,49 +30,19 @@ DENSITIES = {
     "xxxhdpi": 96,
 }
 
-RES = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "android", "app", "src", "main", "res",
-)
+HERE = os.path.dirname(os.path.abspath(__file__))
+RES = os.path.join(os.path.dirname(HERE), "android", "app", "src", "main", "res")
+
+HEAD = Image.open(os.path.join(HERE, "monkey-head.png")).convert("RGBA")
 
 
 def render_master():
-    """Draw the bubble silhouette once at high resolution, dots cut out."""
-    px = 96 * S
+    """Draw the head silhouette once at high resolution, centred in a square."""
+    px = 96 * SS
     img = Image.new("RGBA", (px, px), CLEAR)
-    d = ImageDraw.Draw(img)
-
-    def s(v):
-        return int(round(v * S))
-
-    cx = cy = 48  # centre in dp space
-    bw = 96 * 0.72  # glyph width; leaves ~2dp breathing room per side
-    bh = bw * 0.767
-    bx0, by0 = cx - bw / 2, cy - bh / 2 - bw * 0.03
-    bx1, by1 = bx0 + bw, by0 + bh
-    d.rounded_rectangle([s(bx0), s(by0), s(bx1), s(by1)], radius=s(bh * 0.30), fill=WHITE)
-
-    # tail at the bottom-left, pointing down
-    tail_x = bx0 + bw * 0.26
-    d.polygon(
-        [
-            (s(tail_x), s(by1 - bh * 0.10)),
-            (s(tail_x + bw * 0.20), s(by1 - bh * 0.10)),
-            (s(tail_x - bw * 0.02), s(by1 + bh * 0.22)),
-        ],
-        fill=WHITE,
-    )
-
-    # three dots — punched out (fully transparent) so they read as holes.
-    r = bw * 0.075
-    gap = bw * 0.225
-    dcy = (by0 + by1) / 2
-    for i in (-1, 0, 1):
-        dcx = cx + i * gap
-        d.ellipse(
-            [s(dcx - r), s(dcy - r), s(dcx + r), s(dcy + r)],
-            fill=CLEAR,
-        )
+    scale = px * FILL / max(HEAD.width, HEAD.height)
+    head = HEAD.resize((round(HEAD.width * scale), round(HEAD.height * scale)), Image.LANCZOS)
+    img.alpha_composite(head, ((px - head.width) // 2, (px - head.height) // 2))
     return img
 
 
