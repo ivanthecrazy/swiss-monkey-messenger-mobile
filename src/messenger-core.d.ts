@@ -68,7 +68,13 @@ declare module "@regimenthq/messenger-core" {
     onTasksChanged: (remaining: AssistantTask[]) => void;
   };
 
-  export function configureChatApi(opts: { baseURL?: string; token?: string }): void;
+  export function configureChatApi(opts: {
+    baseURL?: string;
+    token?: string;
+    client?: string;
+    platform?: string;
+    getAppVersion?: () => string;
+  }): void;
   export function configureMessenger(config: Record<string, unknown>): void;
   export function subscribeToUserChannel(
     consumer: unknown,

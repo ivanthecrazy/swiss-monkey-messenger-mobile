@@ -13,15 +13,16 @@ import "@fontsource/lato/900.css";
 import "react-quill/dist/quill.snow.css";
 import App from "./App.tsx";
 import { configureAuth, getTokenStore } from "@regimenthq/shell-auth";
-import { API_BASE, getAppVersion } from "./services/config.ts";
+import { API_BASE, CLIENT, PLATFORM, getAppVersion } from "./services/config.ts";
 
 // Configure the shared auth layer once, before the app mounts. `client: "messenger"`
-// so the platform treats it like the desktop messenger (any user type, its own
-// version floor). Token storage uses the default localStorage store, which persists
+// so the platform treats it like the desktop messenger (any user type); `platform`
+// (ios/android) gives it its own version floor. Token storage uses the default localStorage store, which persists
 // in the Capacitor WebView — secure (Keychain/Keystore) storage is a follow-up.
 configureAuth({
   apiBaseUrl: API_BASE,
-  client: "messenger",
+  client: CLIENT,
+  platform: PLATFORM,
   deviceName: `Mobile (${Capacitor.getPlatform()})`,
   getAppVersion,
   onUnauthorized: () => {
