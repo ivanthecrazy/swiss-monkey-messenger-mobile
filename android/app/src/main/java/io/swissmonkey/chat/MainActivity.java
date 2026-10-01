@@ -1,4 +1,4 @@
-package io.swissmonkey.messenger;
+package io.swissmonkey.chat;
 
 import com.getcapacitor.BridgeActivity;
 
