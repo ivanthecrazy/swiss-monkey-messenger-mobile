@@ -5,7 +5,9 @@ import {
   subscribeToUserChannel,
 } from "@regimenthq/messenger-core";
 import { authGet, getTokenStore } from "@regimenthq/shell-auth";
-import { API_BASE, CABLE_URL } from "../services/config.ts";
+import {
+  API_BASE, CABLE_URL, CLIENT, PLATFORM, getAppVersion,
+} from "../services/config.ts";
 
 // Implements the host/shell contract from the package README: point the REST
 // client at /api with the token, open a token-authed cable consumer, wire the
@@ -68,7 +70,9 @@ export const ensureMessengerClient = () => {
   if (clientConfigured) return;
   const token = getTokenStore().getToken();
   if (!token) return;
-  configureChatApi({ baseURL: API_BASE, token });
+  configureChatApi({
+    baseURL: API_BASE, token, client: CLIENT, platform: PLATFORM, getAppVersion,
+  });
   // Apply defaults immediately (getters never read undefined); startMessenger's
   // loadFeatureFlags then refines them from the server.
   configureMessenger({ ...DEFAULT_FLAGS, currentOrganization: null });
