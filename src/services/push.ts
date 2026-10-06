@@ -66,30 +66,42 @@ export const registerPush = async (onOpenChat?: (chatId: number) => void) => {
     const { receive } = await FirebaseMessaging.requestPermissions();
     if (receive !== "granted") return;
 
-    const { token } = await FirebaseMessaging.getToken();
-    if (token) await sendToken(token);
+    // Bind before fetching the token, so a getToken failure below can't leave
+    // notification taps unhandled for the session.
+    if (!listenersBound) {
+      listenersBound = true;
 
-    if (listenersBound) return;
-    listenersBound = true;
-
-    // FCM rotates tokens; keep the backend in sync.
-    await FirebaseMessaging.addListener("tokenReceived", async ({ token: next }) => {
-      if (next && next !== registeredToken) {
-        try {
-          await sendToken(next);
-        } catch {
-          /* retried on next launch */
+      // FCM rotates tokens; keep the backend in sync. Also the recovery path when
+      // getToken loses the race with APNs registration (see below).
+      await FirebaseMessaging.addListener("tokenReceived", async ({ token: next }) => {
+        if (next && next !== registeredToken) {
+          try {
+            await sendToken(next);
+          } catch {
+            /* retried on next launch */
+          }
         }
-      }
-    });
+      });
 
-    // Tapping the notification opens its chat. The plugin types `data` as `{}`,
-    // so narrow it — FCM data values are always strings.
-    await FirebaseMessaging.addListener("notificationActionPerformed", (event) => {
-      const data = event.notification?.data as Record<string, string> | undefined;
-      const chatId = Number(data?.chat_id);
-      if (chatId) handleTap(chatId);
-    });
+      // Tapping the notification opens its chat. The plugin types `data` as `{}`,
+      // so narrow it — FCM data values are always strings.
+      await FirebaseMessaging.addListener("notificationActionPerformed", (event) => {
+        const data = event.notification?.data as Record<string, string> | undefined;
+        const chatId = Number(data?.chat_id);
+        if (chatId) handleTap(chatId);
+      });
+    }
+
+    // On iOS the APNs token arrives asynchronously after requestPermissions, and
+    // getToken fails (FCM code 505) if it's called first. That's not fatal: once
+    // APNs hands over the token, FCM issues one and tokenReceived registers it.
+    try {
+      const { token } = await FirebaseMessaging.getToken();
+      if (token) await sendToken(token);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn("FCM token not ready yet; waiting for tokenReceived:", error);
+    }
   } catch (error) {
     // Permission denied, or push isn't configured for this build — the app still
     // works, it just won't receive notifications.
