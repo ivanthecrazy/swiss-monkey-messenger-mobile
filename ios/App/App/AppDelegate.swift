@@ -13,6 +13,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
+    func application(_ application: UIApplication,
+                     configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: "Default Configuration",
+                                          sessionRole: connectingSceneSession.role)
+        config.delegateClass = SceneDelegate.self
+        return config
+    }
+
     // Remote-notification callbacks still go to the app delegate under the scene
     // lifecycle. @capacitor-firebase/messaging needs the APNs token handed over:
     // without it FCM can't mint a token ("No APNS token specified before fetching

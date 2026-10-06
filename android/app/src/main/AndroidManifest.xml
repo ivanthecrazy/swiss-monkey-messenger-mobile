@@ -9,9 +9,11 @@
         android:theme="@style/AppTheme">
         <!-- adjustResize: the keyboard shrinks the WebView rather than panning it,
              so the conversation's stick-to-bottom logic keeps the newest message
-             in view. Stops working once targetSdk >= 35 enforces edge-to-edge. -->
+             in view. With targetSdk >= 35 Android enforces edge-to-edge and ignores
+             this; Capacitor's built-in SystemBars plugin takes over, padding the
+             window by the keyboard height and injecting the safe-area CSS variables. -->
         <activity
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
