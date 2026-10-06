@@ -14,6 +14,10 @@ import "react-quill/dist/quill.snow.css";
 import App from "./App.tsx";
 import { configureAuth, getTokenStore } from "@regimenthq/shell-auth";
 import { API_BASE, CLIENT, PLATFORM, getAppVersion } from "./services/config.ts";
+import { initSentry } from "./services/sentry.ts";
+
+// First, so errors from everything after it are reported.
+initSentry();
 
 // Configure the shared auth layer once, before the app mounts. `client: "messenger"`
 // so the platform treats it like the desktop messenger (any user type); `platform`

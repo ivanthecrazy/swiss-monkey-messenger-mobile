@@ -56,6 +56,24 @@ The dev Rails server must allow the Capacitor origin for ActionCable
 - Single-pane mobile navigation (list ↔ conversation).
 - App icons + splash screens for both platforms.
 
+## Error reporting (Sentry)
+
+`@sentry/capacitor` reports JS errors from the web view and native iOS/Android
+crashes, under the native release (`io.swissmonkey.chat@<version>+<build>`). It's
+set up in `src/services/sentry.ts` and configured at build time from a gitignored
+`.env.local` (or the same names as env vars):
+
+```sh
+SENTRY_DSN=https://…@….ingest.us.sentry.io/…   # unset = Sentry off
+SENTRY_AUTH_TOKEN=sntrys_…                     # optional: upload source maps on `npm run build`
+SENTRY_PROJECT=messenger-mobile                # defaults: this project, org swiss-monkey-tf
+```
+
+The DSN is baked into the web bundle, so re-run `npm run sync` after changing it.
+Privacy: events carry the user's id only, breadcrumbs drop `console.log/info`
+output and URL query strings, and screenshots, view hierarchies and session
+replay are all off.
+
 ## Icons & splash
 The mark is the Swiss Monkey monkey, white on brand purple. Two masters in
 `scripts/` are the only hand-made art — the vector mark (platform repo,
