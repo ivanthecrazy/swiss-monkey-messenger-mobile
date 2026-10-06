@@ -46,8 +46,8 @@ const Settings = () => {
         overflow: "hidden",
         boxSizing: "border-box",
         bgcolor: "#FFFFFF",
-        pt: "env(safe-area-inset-top)",
-        pb: "env(safe-area-inset-bottom)",
+        pt: "var(--safe-area-inset-top, env(safe-area-inset-top))",
+        pb: "var(--safe-area-inset-bottom, env(safe-area-inset-bottom))",
       }}
     >
       <Box
