@@ -23,6 +23,8 @@ export default defineConfig(({ mode }) => {
           org: env.SENTRY_ORG || "swiss-monkey-tf",
           project: env.SENTRY_PROJECT || "messenger-mobile",
           release: { create: false },
+          // Don't send Sentry usage data about the plugin itself.
+          telemetry: false,
           sourcemaps: { filesToDeleteAfterUpload: ["dist/**/*.map"] },
           // A Sentry outage shouldn't fail a release build.
           errorHandler: (err) => console.warn("[sentry-vite-plugin] non-fatal:", err.message),
