@@ -4,7 +4,7 @@ import {
   DialogTitle, Typography,
 } from "@mui/material";
 import toast from "react-hot-toast";
-import { uploadAvatar } from "@regimenthq/shell-auth";
+import { errorMessage, uploadAvatar } from "@regimenthq/shell-auth";
 
 type Props = {
   open: boolean;
@@ -50,8 +50,8 @@ const AvatarEditDialog = ({ open, onClose, currentPhotoUrl, fallback, onUploaded
       } else {
         toast.error(result.errors?.join(", ") || "Couldn't update your avatar");
       }
-    } catch {
-      toast.error("Couldn't update your avatar");
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't update your avatar"));
     } finally {
       setLoading(false);
     }
