@@ -9,7 +9,7 @@ import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
-  GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList,
+  GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList, WorkDiaryScreen, fetchDiaryPositions,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
@@ -20,7 +20,7 @@ import { registerPush } from "../services/push.ts";
 import { PLATFORM_ORIGIN } from "../services/config.ts";
 
 // Single-pane mobile messenger. A bottom nav switches between the Chats (grouped
-// list + search), Alerts, and Files tabs; tapping a chat pushes the conversation
+// list + search), Alerts, Files and — for pros — Work Diary tabs; tapping a chat pushes the conversation
 // over everything, and the back arrow returns. The grouped list, alerts, search,
 // and files are shared components from messenger-core — the same code the desktop
 // shell runs — so the two stay in sync.
@@ -38,6 +38,9 @@ const Messenger = () => {
   const [tab, setTab] = useState<MessengerTab>("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [alertsUnread, setAlertsUnread] = useState(0);
+  // Pros with a position get the Work Diary tab, once the platform has it switched
+  // on (ENABLE_WORK_DIARY); everyone else never sees it.
+  const [showWorkDiary, setShowWorkDiary] = useState(false);
   // Bumped to force the grouped list to refetch (pull-to-refresh).
   const [groupRefresh, setGroupRefresh] = useState(0);
 
@@ -188,6 +191,14 @@ const Messenger = () => {
     return other?.name || chat.job?.title || "Chat";
   };
 
+  useEffect(() => {
+    // A platform without enable_work_diary in /api/config reads as off.
+    authGet<{ enable_work_diary?: boolean }>("config")
+      .then((cfg) => (cfg?.enable_work_diary === true ? fetchDiaryPositions() : []))
+      .then((positions) => setShowWorkDiary(positions.length > 0))
+      .catch(() => {});
+  }, []);
+
   const openPlatformUrl = (path: string) => { window.open(`${PLATFORM_ORIGIN}${path}`, "_blank"); };
   const openFile = (url: string) => { window.open(url, "_blank"); };
 
@@ -329,13 +340,19 @@ const Messenger = () => {
                 </Box>
               )}
 
+              {tab === "time" && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  <WorkDiaryScreen onOpenUrl={openPlatformUrl} />
+                </Box>
+              )}
+
               {tab === "files" && (
                 <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
                   <FilesList onOpenUrl={openFile} />
                 </Box>
               )}
             </Box>
-            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} />
+            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} showWorkDiary={showWorkDiary} />
           </>
         )}
       </Box>

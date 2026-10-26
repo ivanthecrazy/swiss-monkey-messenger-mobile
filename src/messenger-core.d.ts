@@ -114,6 +114,14 @@ declare module "@regimenthq/messenger-core" {
     onOpenChat?: (chatId: number, messageId?: number) => void;
   }>;
 
+  // A pro's Work Diary: their active positions, then the chosen one's timesheet and
+  // manual time requests. Web pages (ID verification) open through onOpenUrl.
+  export const WorkDiaryScreen: ComponentType<{
+    onOpenUrl?: (path: string) => void;
+    displayCurrency?: string;
+  }>;
+  export function fetchDiaryPositions(): Promise<any[]>;
+
   // "All Files" across the user's conversations. Downloads delegated to the host.
   export const FilesList: ComponentType<{
     onOpenUrl?: (url: string) => void;
