@@ -21,7 +21,8 @@ const initials = (name?: string) =>
     .join("")
     .toUpperCase();
 
-const UserBlock = () => {
+// onOpenProfile: the pro's own profile, when the platform has it on (see Messenger).
+const UserBlock = ({ onOpenProfile }: { onOpenProfile?: () => void }) => {
   const navigate = useNavigate();
   // Read once on mount; returning from Settings remounts this, so an avatar
   // changed there shows up without extra plumbing.
@@ -55,6 +56,9 @@ const UserBlock = () => {
         <MoreVertIcon />
       </IconButton>
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
+        {onOpenProfile && (
+          <MenuItem onClick={() => { setAnchor(null); onOpenProfile(); }}>My Profile</MenuItem>
+        )}
         <MenuItem onClick={() => { setAnchor(null); navigate("/settings"); }}>Settings</MenuItem>
         <MenuItem onClick={() => { setAnchor(null); setConfirmOpen(true); }}>Sign out</MenuItem>
       </Menu>

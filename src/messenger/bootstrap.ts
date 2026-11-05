@@ -6,7 +6,7 @@ import {
 } from "@regimenthq/messenger-core";
 import { authGet, getTokenStore } from "@regimenthq/shell-auth";
 import {
-  API_BASE, CABLE_URL, CLIENT, PLATFORM, getAppVersion,
+  API_BASE, CABLE_URL, CLIENT, PLATFORM, PLATFORM_ORIGIN, getAppVersion,
 } from "../services/config.ts";
 
 // Implements the host/shell contract from the package README: point the REST
@@ -26,6 +26,10 @@ const DEFAULT_FLAGS = {
   // Per user, not ENV — so it has no safe default and starts off. The server
   // decides in loadFeatureFlags() below, and configureMessenger notifies the UI.
   enableTaskAssistant: false,
+  // CircleCo until the server says the internal /help site is live.
+  enablePublicKnowledgeBase: false,
+  // Links shown or copied in the app (a profile's public URL) point at the platform.
+  platformOrigin: PLATFORM_ORIGIN,
 };
 
 type ServerConfig = {
@@ -33,6 +37,7 @@ type ServerConfig = {
   hide_message_threads?: boolean;
   enable_mentions?: boolean;
   enable_task_assistant?: boolean;
+  enable_public_knowledge_base?: boolean;
 };
 
 // Pull the messenger feature flags from the platform (GET /api/config) so the
@@ -50,6 +55,9 @@ const loadFeatureFlags = async () => {
       // Resolved for the signed-in user, so it must be read after login rather
       // than baked into the build — two people on this same build can differ.
       enableTaskAssistant: cfg.enable_task_assistant === true,
+      // Where "Resources" links go (internal /help vs CircleCo), as on the web.
+      enablePublicKnowledgeBase: cfg.enable_public_knowledge_base === true,
+      platformOrigin: PLATFORM_ORIGIN,
       // No org context in the desktop shell; only used for the web deep-link.
       currentOrganization: null,
     });

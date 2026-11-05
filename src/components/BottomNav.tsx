@@ -2,10 +2,14 @@ import { Box, Typography } from "@mui/material";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 
-export type MessengerTab = "chats" | "alerts" | "files";
+export type MessengerTab = "chats" | "home" | "alerts" | "files";
 
 const ITEMS: { key: MessengerTab; label: string; Icon: typeof ChatBubbleOutlineRoundedIcon }[] = [
+  // Pros only, while the platform has the app dashboard on (see Messenger's showHome).
+  // First when shown, as in the desktop rail.
+  { key: "home", label: "Home", Icon: HomeOutlinedIcon },
   { key: "chats", label: "Chats", Icon: ChatBubbleOutlineRoundedIcon },
   { key: "alerts", label: "Alerts", Icon: NotificationsNoneRoundedIcon },
   { key: "files", label: "Files", Icon: DescriptionOutlinedIcon },
@@ -14,11 +18,12 @@ const ITEMS: { key: MessengerTab; label: string; Icon: typeof ChatBubbleOutlineR
 // Mobile primary navigation — the phone analog of the desktop LeftRail. Sits at the
 // bottom of the list level; the parent hides it while a conversation is open.
 const BottomNav = ({
-  tab, onChange, alertsUnread = 0,
+  tab, onChange, alertsUnread = 0, showHome = false,
 }: {
   tab: MessengerTab;
   onChange: (t: MessengerTab) => void;
   alertsUnread?: number;
+  showHome?: boolean;
 }) => (
   <Box
     sx={{
@@ -28,7 +33,7 @@ const BottomNav = ({
       backgroundColor: "#FFFFFF",
     }}
   >
-    {ITEMS.map(({ key, label, Icon }) => {
+    {ITEMS.filter(({ key }) => showHome || key !== "home").map(({ key, label, Icon }) => {
       const active = tab === key;
       const showBadge = key === "alerts" && alertsUnread > 0;
       return (

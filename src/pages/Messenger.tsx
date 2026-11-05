@@ -9,10 +9,12 @@ import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
-  GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList,
+  GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList, ContractorDashboardScreen,
+  OwnProfileScreen,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
+import { Browser } from "@capacitor/browser";
 import UserBlock from "../components/UserBlock.tsx";
 import PullToRefresh from "../components/PullToRefresh.tsx";
 import BottomNav, { MessengerTab } from "../components/BottomNav.tsx";
@@ -36,6 +38,21 @@ const Messenger = () => {
   const isAdmin = Boolean((currentUser as { admin?: boolean } | null)?.admin);
 
   const [tab, setTab] = useState<MessengerTab>("chats");
+  // The Home tab is for pros while the platform has ENABLE_APP_DASHBOARD on (a
+  // platform without the key reads as off). The server 403s anyone else anyway.
+  const [showHome, setShowHome] = useState(false);
+  // The pro's own profile (same gate as Home), shown over the tabs rather than as a
+  // route: the user cable lives on this page, and the resume upload needs it for the
+  // CV extraction result.
+  const [profileOpen, setProfileOpen] = useState(false);
+  useEffect(() => {
+    const userType = (currentUser as { user_type?: string } | null)?.user_type;
+    if (userType !== "contractor") return;
+    authGet<{ enable_app_dashboard?: boolean }>("config")
+      .then((cfg) => setShowHome(cfg?.enable_app_dashboard === true))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [alertsUnread, setAlertsUnread] = useState(0);
   // Bumped to force the grouped list to refetch (pull-to-refresh).
@@ -217,7 +234,14 @@ const Messenger = () => {
           pb: "var(--safe-area-inset-bottom, env(safe-area-inset-bottom))",
         }}
       >
-        {showTasksPanel ? (
+        {profileOpen && showHome ? (
+          <>
+            {backHeader(() => setProfileOpen(false), "My Profile")}
+            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <OwnProfileScreen openExternal={(url) => { Browser.open({ url }); }} />
+            </Box>
+          </>
+        ) : showTasksPanel ? (
           <>
             {backHeader(() => setTasksOpen(false))}
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -256,7 +280,7 @@ const Messenger = () => {
           </>
         ) : (
           <>
-            <UserBlock />
+            <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               {tab === "chats" && (
                 <>
@@ -318,6 +342,18 @@ const Messenger = () => {
                 </>
               )}
 
+              {tab === "home" && showHome && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  {/* Browser.open, not window.open: the URL arrives after a request
+                      (the sign-in handoff), and iOS drops a window.open that isn't
+                      a direct response to a tap. */}
+                  <ContractorDashboardScreen
+                    openExternal={(url) => { Browser.open({ url }); }}
+                    onOpenProfile={() => setProfileOpen(true)}
+                  />
+                </Box>
+              )}
+
               {tab === "alerts" && (
                 <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
                   <NotificationsList
@@ -335,7 +371,7 @@ const Messenger = () => {
                 </Box>
               )}
             </Box>
-            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} />
+            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} showHome={showHome} />
           </>
         )}
       </Box>

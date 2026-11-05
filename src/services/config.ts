@@ -2,8 +2,8 @@ import { Capacitor } from "@capacitor/core";
 
 // Backend endpoints. Swap to staging/local as needed.
 // export const PLATFORM_ORIGIN = "http://localhost:3000";
-// export const PLATFORM_ORIGIN = "https://staging.swissmonkey.io";
-export const PLATFORM_ORIGIN = "https://platform.swissmonkey.io";
+export const PLATFORM_ORIGIN = "https://staging.swissmonkey.io";
+// export const PLATFORM_ORIGIN = "https://platform.swissmonkey.io";
 
 // Trailing slash: auth requests concatenate this directly (e.g. `${API_URL}login`).
 export const API_URL = `${PLATFORM_ORIGIN}/api/`;

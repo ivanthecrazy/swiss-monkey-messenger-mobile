@@ -119,6 +119,20 @@ declare module "@regimenthq/messenger-core" {
     onOpenUrl?: (url: string) => void;
     hideHeader?: boolean;
   }>;
+
+  // A pro's Home: the onboarding checklist and their offices (GET /api/dashboard).
+  // Links to web pages are resolved to signed-in handoff URLs before openExternal.
+  export const ContractorDashboardScreen: ComponentType<{
+    openExternal: (url: string) => void;
+    // The checklist's profile links (/p/:id) open the in-app profile instead.
+    onOpenProfile?: () => void;
+  }>;
+
+  // The pro's own profile, editable in place (GET /api/profile/edit). Mount it in a
+  // scrolling panel; web-only links go through the sign-in handoff to openExternal.
+  export const OwnProfileScreen: ComponentType<{
+    openExternal: (url: string) => void;
+  }>;
 }
 
 declare module "@rails/actioncable" {
