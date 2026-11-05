@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- The staging flavor's launcher name; everything else comes from src/main. -->
+<resources>
+    <string name="app_name">SM Staging</string>
+    <string name="title_activity_main">SM Staging</string>
+</resources>

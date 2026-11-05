@@ -22,6 +22,44 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    // production = the store app. staging = a separate app (own package id, name
+    // "SM Staging" and orange icon from src/staging/) that installs next to it and
+    // talks to staging — build its web bundle with `npm run sync:staging`.
+    flavorDimensions = ["env"]
+    productFlavors {
+        production {
+            dimension "env"
+        }
+        staging {
+            dimension "env"
+            applicationIdSuffix ".staging"
+        }
+    }
+}
+
+// The web bundle carries the environment it was built for (dist/app-env.txt, from
+// vite.config.ts). Refuse to build an app around the wrong one, so a staging bundle
+// can never end up in the production app or the other way round.
+tasks.matching { it.name ==~ /pre(Production|Staging)(Debug|Release)Build/ }.configureEach { task ->
+    def flavor = (task.name =~ /pre(Production|Staging)/)[0][1].toLowerCase()
+    task.doFirst {
+        def marker = file('src/main/assets/public/app-env.txt')
+        def bundleEnv = marker.exists() ? marker.text.trim() : null
+        if (bundleEnv != flavor) {
+            def sync = flavor == 'staging' ? 'npm run sync:staging' : 'npm run sync'
+            if (bundleEnv in ['production', 'staging']) {
+                throw new GradleException(
+                    "This is the ${flavor} app, but the synced web bundle is ${bundleEnv}. To run ${bundleEnv}, " +
+                    "pick a ${bundleEnv} build variant (Build > Select Build Variant). To run ${flavor}, run `${sync}` first.")
+            }
+            throw new GradleException("The synced web bundle is missing or predates app-env.txt. Run `${sync}` first.")
+        }
+        if (flavor == 'staging' && !file('src/staging/google-services.json').exists()) {
+            throw new GradleException(
+                "Missing android/app/src/staging/google-services.json: register io.swissmonkey.chat.staging " +
+                "as an Android app in the Firebase project and download its config there.")
+        }
+    }
 }
 
 repositories {

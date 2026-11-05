@@ -54,7 +54,7 @@ export const initSentry = () => {
   Sentry.init(
     {
       dsn: __SENTRY_DSN__,
-      environment: import.meta.env.DEV ? "development" : "production",
+      environment: import.meta.env.DEV ? "development" : __APP_ENV__,
       sendDefaultPii: false,
       beforeBreadcrumb: scrubBreadcrumb,
     },

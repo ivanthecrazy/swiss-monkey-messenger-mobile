@@ -1,9 +1,12 @@
 import { Capacitor } from "@capacitor/core";
 
-// Backend endpoints. Swap to staging/local as needed.
-// export const PLATFORM_ORIGIN = "http://localhost:3000";
-export const PLATFORM_ORIGIN = "https://staging.swissmonkey.io";
-// export const PLATFORM_ORIGIN = "https://platform.swissmonkey.io";
+// Backend endpoints, fixed at build time by vite.config.ts from the build mode:
+// `npm run sync` -> production, `npm run sync:staging` -> staging. To point a
+// build at a local server, set VITE_PLATFORM_ORIGIN (e.g. http://localhost:3000).
+// The native build checks the bundle's environment matches its own (production
+// app vs the `.staging` one), so a staging bundle can't ship in the store app.
+export const APP_ENV = __APP_ENV__;
+export const PLATFORM_ORIGIN = __PLATFORM_ORIGIN__;
 
 // Trailing slash: auth requests concatenate this directly (e.g. `${API_URL}login`).
 export const API_URL = `${PLATFORM_ORIGIN}/api/`;

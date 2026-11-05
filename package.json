@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:staging": "tsc && vite build --mode staging",
     "preview": "vite preview",
     "sync": "npm run build && cap sync",
+    "sync:staging": "npm run build:staging && cap sync",
     "ios": "npm run build && cap sync ios && cap open ios",
+    "ios:staging": "npm run build:staging && cap sync ios && cap open ios",
     "android": "npm run build && cap sync android && cap open android",
-    "assets": "python3 scripts/make-assets.py && npx --yes @capacitor/assets generate --ios --android && python3 scripts/make-notification-icon.py"
+    "android:staging": "npm run build:staging && cap sync android && cap open android",
+    "assets": "python3 scripts/make-assets.py && npx --yes @capacitor/assets generate --ios --android && python3 scripts/make-notification-icon.py && python3 scripts/make-staging-icons.py"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^8.5.2",

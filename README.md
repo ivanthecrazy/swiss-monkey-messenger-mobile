@@ -37,9 +37,33 @@ npm run android   # build + sync + open Android Studio → run on an emulator/de
 After changing web code, re-run `npm run sync` (or `npm run ios` / `npm run android`)
 to copy the new build into the native shells.
 
-## Backend endpoint
-`src/services/config.ts` sets `PLATFORM_ORIGIN` (defaults to production). For local
-testing:
+## Backend endpoint & staging builds
+The backend is fixed at build time by the web build mode (`vite.config.ts`):
+
+| command | backend | native app to build |
+| --- | --- | --- |
+| `npm run sync` / `ios` / `android` | production (`platform.swissmonkey.io`) | iOS scheme **App**, Android flavor **production** |
+| `npm run sync:staging` / `ios:staging` / `android:staging` | staging (`staging.swissmonkey.io`) | iOS scheme **App Staging**, Android flavor **staging** |
+
+The staging app is a separate app — bundle/package id `io.swissmonkey.chat.staging`,
+named "SM Staging", orange icon — so it installs next to the store app. On iOS it's
+its own App Store Connect app, used only for TestFlight (archive the **App Staging**
+scheme). On Android pick the `stagingDebug`/`stagingRelease` build variant.
+
+The web bundle records its environment in `dist/app-env.txt`, and both native builds
+refuse to build around the wrong one (an Xcode build phase, and a Gradle check on
+`pre<Flavor><Type>Build`), so a staging bundle can't end up in the store app. If a
+build fails with "the synced web bundle is …", run the sync command it names.
+
+Firebase: the staging app needs its own entries in the Firebase project —
+`ios/App/App/Firebase/Staging/GoogleService-Info.plist` (copied over the production
+one by the build phase; without it the build warns and push doesn't work) and
+`android/app/src/staging/google-services.json` (required by the Android build).
+
+Staging icons come from the production ones (`scripts/make-staging-icons.py`, run by
+`npm run assets`).
+
+For a local server, set `VITE_PLATFORM_ORIGIN` (shell or `.env.local`):
 - **iOS simulator** shares the Mac's network, so `http://localhost:3000` works.
 - **Android emulator** reaches the host at `http://10.0.2.2:3000`.
 - **Physical device** needs the Mac's LAN IP (e.g. `http://192.168.x.x:3000`) or a
