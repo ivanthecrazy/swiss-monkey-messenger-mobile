@@ -1,6 +1,6 @@
 """Generate the staging app's icons from the production ones.
 
-The staging build (bundle/package id `io.swissmonkey.chat.staging`) installs next
+The staging build (bundle/package id `io.swissmonkey.chatstaging`) installs next
 to the store app, so it gets the same monkey on orange instead of brand purple —
 easy to tell apart on a home screen. Every production icon is white mark on purple
 (plus antialiased blends of the two), so each pixel is recoloured by how far it

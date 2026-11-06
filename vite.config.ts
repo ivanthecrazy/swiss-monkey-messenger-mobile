@@ -13,7 +13,7 @@ type AppEnv = keyof typeof ORIGINS;
 
 // Writes the bundle's environment to dist/app-env.txt. The iOS build phase and the
 // Android build both read it from the synced bundle and fail when it doesn't match
-// the app being built (production app vs `.staging` app) — see README "Staging builds".
+// the app being built (production app vs the staging one) — see README "Staging builds".
 const appEnvMarker = (appEnv: AppEnv): Plugin => ({
   name: "app-env-marker",
   apply: "build",

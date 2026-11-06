@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "95200348677",
+    "project_id": "swiss-monkey-messenger",
+    "storage_bucket": "swiss-monkey-messenger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95200348677:android:5fc838ef577adc884faa6c",
+        "android_client_info": {
+          "package_name": "io.swissmonkey.chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzVz1mnB0DjBJ8wVbVz7K6bS9PvMRS4o4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95200348677:android:5f117000fc3089244faa6c",
+        "android_client_info": {
+          "package_name": "io.swissmonkey.chatstaging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzVz1mnB0DjBJ8wVbVz7K6bS9PvMRS4o4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

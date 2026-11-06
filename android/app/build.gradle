@@ -22,7 +22,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    // production = the store app. staging = a separate app (own package id, name
+    // production = the store app. staging = a separate app (own package id io.swissmonkey.chatstaging, name
     // "SM Staging" and orange icon from src/staging/) that installs next to it and
     // talks to staging — build its web bundle with `npm run sync:staging`.
     flavorDimensions = ["env"]
@@ -32,7 +32,7 @@ android {
         }
         staging {
             dimension "env"
-            applicationIdSuffix ".staging"
+            applicationId "io.swissmonkey.chatstaging"
         }
     }
 }
@@ -56,7 +56,7 @@ tasks.matching { it.name ==~ /pre(Production|Staging)(Debug|Release)Build/ }.con
         }
         if (flavor == 'staging' && !file('src/staging/google-services.json').exists()) {
             throw new GradleException(
-                "Missing android/app/src/staging/google-services.json: register io.swissmonkey.chat.staging " +
+                "Missing android/app/src/staging/google-services.json: register io.swissmonkey.chatstaging " +
                 "as an Android app in the Firebase project and download its config there.")
         }
     }

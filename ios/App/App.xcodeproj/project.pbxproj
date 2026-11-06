@@ -178,7 +178,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The web bundle records the environment it was built for (App/public/app-env.txt,\n# written by vite.config.ts). Refuse to build the production app around a staging\n# bundle, or the staging app around a production one.\nmarker=\"${SRCROOT}/App/public/app-env.txt\"\nbundle_env=\"$(tr -d '[:space:]' < \"$marker\" 2>/dev/null)\"\nif [ \"$bundle_env\" != \"$APP_ENV\" ]; then\n  if [ \"$APP_ENV\" = staging ]; then other_scheme=\"App\"; sync=\"npm run sync:staging\"; else other_scheme=\"App Staging\"; sync=\"npm run sync\"; fi\n  if [ -n \"$bundle_env\" ]; then\n    echo \"error: This is the $APP_ENV app ($CONFIGURATION), but the synced web bundle is $bundle_env. To run $bundle_env, switch to the '$other_scheme' scheme. To run $APP_ENV, run '$sync' first.\"\n  else\n    echo \"error: The synced web bundle is missing or predates app-env.txt. Run '$sync' first.\"\n  fi\n  exit 1\nfi\n\n# The staging app (io.swissmonkey.chat.staging) is its own app in Firebase.\nif [ \"$APP_ENV\" = staging ]; then\n  staging_plist=\"${SRCROOT}/App/Firebase/Staging/GoogleService-Info.plist\"\n  if [ -f \"$staging_plist\" ]; then\n    cp \"$staging_plist\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n  else\n    echo \"warning: Missing ios/App/App/Firebase/Staging/GoogleService-Info.plist (register io.swissmonkey.chat.staging in Firebase). Push won't work in this build.\"\n  fi\nfi\n";
+			shellScript = "# The web bundle records the environment it was built for (App/public/app-env.txt,\n# written by vite.config.ts). Refuse to build the production app around a staging\n# bundle, or the staging app around a production one.\nmarker=\"${SRCROOT}/App/public/app-env.txt\"\nbundle_env=\"$(tr -d '[:space:]' < \"$marker\" 2>/dev/null)\"\nif [ \"$bundle_env\" != \"$APP_ENV\" ]; then\n  if [ \"$APP_ENV\" = staging ]; then other_scheme=\"App\"; sync=\"npm run sync:staging\"; else other_scheme=\"App Staging\"; sync=\"npm run sync\"; fi\n  if [ -n \"$bundle_env\" ]; then\n    echo \"error: This is the $APP_ENV app ($CONFIGURATION), but the synced web bundle is $bundle_env. To run $bundle_env, switch to the '$other_scheme' scheme. To run $APP_ENV, run '$sync' first.\"\n  else\n    echo \"error: The synced web bundle is missing or predates app-env.txt. Run '$sync' first.\"\n  fi\n  exit 1\nfi\n\n# The staging app (io.swissmonkey.chatstaging) is its own app in Firebase.\nif [ \"$APP_ENV\" = staging ]; then\n  staging_plist=\"${SRCROOT}/App/Firebase/Staging/GoogleService-Info.plist\"\n  if [ -f \"$staging_plist\" ]; then\n    cp \"$staging_plist\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n  else\n    echo \"warning: Missing ios/App/App/Firebase/Staging/GoogleService-Info.plist (register io.swissmonkey.chatstaging in Firebase). Push won't work in this build.\"\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -444,7 +444,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.3.3;
-				PRODUCT_BUNDLE_IDENTIFIER = io.swissmonkey.chat.staging;
+				PRODUCT_BUNDLE_IDENTIFIER = io.swissmonkey.chatstaging;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;

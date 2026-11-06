@@ -45,7 +45,7 @@ The backend is fixed at build time by the web build mode (`vite.config.ts`):
 | `npm run sync` / `ios` / `android` | production (`platform.swissmonkey.io`) | iOS scheme **App**, Android flavor **production** |
 | `npm run sync:staging` / `ios:staging` / `android:staging` | staging (`staging.swissmonkey.io`) | iOS scheme **App Staging**, Android flavor **staging** |
 
-The staging app is a separate app — bundle/package id `io.swissmonkey.chat.staging`,
+The staging app is a separate app — bundle/package id `io.swissmonkey.chatstaging`,
 named "SM Staging", orange icon — so it installs next to the store app. On iOS it's
 its own App Store Connect app, used only for TestFlight (archive the **App Staging**
 scheme). On Android pick the `stagingDebug`/`stagingRelease` build variant.
