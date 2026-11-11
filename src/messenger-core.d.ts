@@ -114,6 +114,25 @@ declare module "@regimenthq/messenger-core" {
     onOpenChat?: (chatId: number, messageId?: number) => void;
   }>;
 
+  // A pro's Work Diary: their active positions, then the chosen one's timesheet and
+  // manual time requests. Web pages (ID verification) open through onOpenUrl.
+  export const WorkDiaryScreen: ComponentType<{
+    onOpenUrl?: (path: string) => void;
+    displayCurrency?: string;
+  }>;
+  export function fetchDiaryPositions(): Promise<any[]>;
+
+  // A pro's productivity reports: their daily reports across every practice, then one
+  // report — read, or edited while it is this week's (GET /api/productivity_logs, …).
+  // Attachments open through onOpenFile (an absolute URL).
+  export const ProductivityReportsScreen: ComponentType<{
+    currentUserId?: number;
+    currency?: string;
+    onOpenFile?: (url: string) => void;
+    // Show this report (one picked on Home); a new object opens it again.
+    openReport?: { organizationSlug: string; id: number };
+  }>;
+
   // "All Files" across the user's conversations. Downloads delegated to the host.
   export const FilesList: ComponentType<{
     onOpenUrl?: (url: string) => void;
@@ -126,7 +145,14 @@ declare module "@regimenthq/messenger-core" {
     openExternal: (url: string) => void;
     // The checklist's profile links (/p/:id) open the in-app profile instead.
     onOpenProfile?: () => void;
+    // Report links (/organizations/:slug/productivity_logs[/:id]) open the in-app
+    // reports instead: null for the list, the report otherwise.
+    onOpenReports?: (report: { organizationSlug: string; id: number } | null) => void;
   }>;
+
+  // A web path → a one-time signed-in handoff URL (POST /api/web_sessions); absolute
+  // and mailto: links come back as is. Expires in a minute: open it straight away.
+  export function resolveWebLink(href: string): Promise<string>;
 
   // The pro's own profile, editable in place (GET /api/profile/edit). Mount it in a
   // scrolling panel; web-only links go through the sign-in handoff to openExternal.

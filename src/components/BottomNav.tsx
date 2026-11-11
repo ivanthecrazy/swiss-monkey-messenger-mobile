@@ -1,22 +1,29 @@
 import { Box, Typography } from "@mui/material";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
-export type MessengerTab = "chats" | "home" | "alerts" | "files";
+// Every screen at the list level. Home, Chats and Alerts have their own bar buttons;
+// the rest live under More (see MoreMenu), which stays highlighted while one is open.
+export type MessengerTab = "home" | "chats" | "alerts" | "more" | "files" | "time" | "reports";
 
-const ITEMS: { key: MessengerTab; label: string; Icon: typeof ChatBubbleOutlineRoundedIcon }[] = [
+export const MORE_TABS: MessengerTab[] = ["more", "files", "time", "reports"];
+
+type BarKey = "home" | "chats" | "alerts" | "more";
+
+const ITEMS: { key: BarKey; label: string; Icon: typeof ChatBubbleOutlineRoundedIcon }[] = [
   // Pros only, while the platform has the app dashboard on (see Messenger's showHome).
   // First when shown, as in the desktop rail.
   { key: "home", label: "Home", Icon: HomeOutlinedIcon },
   { key: "chats", label: "Chats", Icon: ChatBubbleOutlineRoundedIcon },
   { key: "alerts", label: "Alerts", Icon: NotificationsNoneRoundedIcon },
-  { key: "files", label: "Files", Icon: DescriptionOutlinedIcon },
+  { key: "more", label: "More", Icon: MenuRoundedIcon },
 ];
 
-// Mobile primary navigation — the phone analog of the desktop LeftRail. Sits at the
-// bottom of the list level; the parent hides it while a conversation is open.
+// Mobile primary navigation — the phone analog of the desktop LeftRail, kept to four
+// buttons so Chats and the Alerts badge stay one tap away. Sits at the bottom of the
+// list level; the parent hides it while a conversation is open.
 const BottomNav = ({
   tab, onChange, alertsUnread = 0, showHome = false,
 }: {
@@ -33,8 +40,8 @@ const BottomNav = ({
       backgroundColor: "#FFFFFF",
     }}
   >
-    {ITEMS.filter(({ key }) => showHome || key !== "home").map(({ key, label, Icon }) => {
-      const active = tab === key;
+    {ITEMS.filter(({ key }) => key !== "home" || showHome).map(({ key, label, Icon }) => {
+      const active = key === "more" ? MORE_TABS.includes(tab) : tab === key;
       const showBadge = key === "alerts" && alertsUnread > 0;
       return (
         <Box

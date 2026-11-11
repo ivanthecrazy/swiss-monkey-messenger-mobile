@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, ReactNode } from "react";
+import { useNavigate } from "react-router";
 import {
   Box, Button, CircularProgress, IconButton, InputBase, Typography,
 } from "@mui/material";
@@ -10,7 +11,7 @@ import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
   GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList, ContractorDashboardScreen,
-  OwnProfileScreen,
+  OwnProfileScreen, WorkDiaryScreen, fetchDiaryPositions, resolveWebLink, ProductivityReportsScreen,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
@@ -18,15 +19,28 @@ import { Browser } from "@capacitor/browser";
 import UserBlock from "../components/UserBlock.tsx";
 import PullToRefresh from "../components/PullToRefresh.tsx";
 import BottomNav, { MessengerTab } from "../components/BottomNav.tsx";
+import MoreMenu, { moreEntries } from "../components/MoreMenu.tsx";
 import { registerPush } from "../services/push.ts";
 import { PLATFORM_ORIGIN } from "../services/config.ts";
 
-// Single-pane mobile messenger. A bottom nav switches between the Chats (grouped
-// list + search), Alerts, and Files tabs; tapping a chat pushes the conversation
-// over everything, and the back arrow returns. The grouped list, alerts, search,
+// Single-pane mobile messenger. A bottom nav switches between Chats (grouped list +
+// search), Alerts, More and — for pros — Home; More lists the rest (Files, and for
+// pros Work Diary, Productivity Reports and My Profile, then Settings), each opening
+// with a back arrow to the list. Tapping a chat pushes the conversation over
+// everything, and the back arrow returns. The grouped list, alerts, search,
 // and files are shared components from messenger-core — the same code the desktop
 // shell runs — so the two stay in sync.
+// The screens under More get a back arrow (to the More list) and this title in
+// place of the user block.
+// Productivity Reports titles itself, so its bar carries the arrow alone.
+const MORE_TITLES: Partial<Record<MessengerTab, string>> = {
+  files: "Files",
+  time: "Work Diary",
+  reports: "",
+};
+
 const Messenger = () => {
+  const navigate = useNavigate();
   // Configure the API client now, during render — the self-loading messenger-core
   // components fetch in their mount effects, which fire before this component's
   // mount effect. Doing it only in startMessenger (an effect) would send that first
@@ -45,11 +59,30 @@ const Messenger = () => {
   // route: the user cable lives on this page, and the resume upload needs it for the
   // CV extraction result.
   const [profileOpen, setProfileOpen] = useState(false);
+  // Pros with a position get the Work Diary tab, once the platform has it switched
+  // on (ENABLE_WORK_DIARY); everyone else never sees it.
+  const [showWorkDiary, setShowWorkDiary] = useState(false);
+  // A pro's productivity reports (ENABLE_APP_PRODUCTIVITY_REPORTS), under More.
+  const [showReports, setShowReports] = useState(false);
+  // Set while Reports was opened from a Home link (an office's report, or its View
+  // All): which report to show, and Back returns to Home instead of More.
+  const [reportsFromHome, setReportsFromHome] = useState<{
+    report: { organizationSlug: string; id: number } | null;
+  } | null>(null);
+  // One /api/config read decides all of them.
   useEffect(() => {
-    const userType = (currentUser as { user_type?: string } | null)?.user_type;
-    if (userType !== "contractor") return;
-    authGet<{ enable_app_dashboard?: boolean }>("config")
-      .then((cfg) => setShowHome(cfg?.enable_app_dashboard === true))
+    const isContractor = (currentUser as { user_type?: string } | null)?.user_type === "contractor";
+    authGet<{
+      enable_app_dashboard?: boolean; enable_work_diary?: boolean; enable_productivity_reports?: boolean;
+    }>("config")
+      .then((cfg) => {
+        setShowHome(isContractor && cfg?.enable_app_dashboard === true);
+        setShowReports(isContractor && cfg?.enable_productivity_reports === true);
+        if (cfg?.enable_work_diary !== true) return;
+        fetchDiaryPositions()
+          .then((positions) => setShowWorkDiary(positions.length > 0))
+          .catch(() => {});
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -205,7 +238,20 @@ const Messenger = () => {
     return other?.name || chat.job?.title || "Chat";
   };
 
-  const openPlatformUrl = (path: string) => { window.open(`${PLATFORM_ORIGIN}${path}`, "_blank"); };
+  // Web pages (Work Diary's ID verification, alert links) open in the system browser
+  // already signed in, via the one-time handoff. Browser.open rather than
+  // window.open: the URL arrives after a request, and iOS drops a window.open that
+  // isn't a direct response to a tap. The server refuses the handoff to admins, and
+  // any failure falls back to the plain URL (the web's login page).
+  const openPlatformUrl = async (path: string) => {
+    let url = `${PLATFORM_ORIGIN}${path}`;
+    try {
+      url = await resolveWebLink(path);
+    } catch {
+      // keep the plain URL
+    }
+    Browser.open({ url });
+  };
   const openFile = (url: string) => { window.open(url, "_blank"); };
 
   const backHeader = (onBack: () => void, title?: string, right?: ReactNode) => (
@@ -280,7 +326,18 @@ const Messenger = () => {
           </>
         ) : (
           <>
-            <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
+            {MORE_TITLES[tab] !== undefined ? (
+              backHeader(() => {
+                if (tab === "reports" && reportsFromHome) {
+                  setReportsFromHome(null);
+                  setTab("home");
+                } else {
+                  setTab("more");
+                }
+              }, MORE_TITLES[tab])
+            ) : (
+              <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
+            )}
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               {tab === "chats" && (
                 <>
@@ -350,6 +407,10 @@ const Messenger = () => {
                   <ContractorDashboardScreen
                     openExternal={(url) => { Browser.open({ url }); }}
                     onOpenProfile={() => setProfileOpen(true)}
+                    onOpenReports={showReports ? (report) => {
+                      setReportsFromHome({ report });
+                      setTab("reports");
+                    } : undefined}
                   />
                 </Box>
               )}
@@ -365,13 +426,47 @@ const Messenger = () => {
                 </Box>
               )}
 
+              {tab === "more" && (
+                <MoreMenu
+                  entries={moreEntries({
+                    openFiles: () => setTab("files"),
+                    openWorkDiary: showWorkDiary ? () => setTab("time") : undefined,
+                    openReports: showReports ? () => { setReportsFromHome(null); setTab("reports"); } : undefined,
+                    openProfile: showHome ? () => setProfileOpen(true) : undefined,
+                    openSettings: () => navigate("/settings"),
+                  })}
+                />
+              )}
+
+              {tab === "reports" && showReports && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  <ProductivityReportsScreen
+                    currentUserId={currentUserId}
+                    currency={(currentUser as { currency?: string } | null)?.currency}
+                    onOpenFile={(url) => { Browser.open({ url }); }}
+                    openReport={reportsFromHome?.report ?? undefined}
+                  />
+                </Box>
+              )}
+
+              {tab === "time" && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  <WorkDiaryScreen onOpenUrl={openPlatformUrl} />
+                </Box>
+              )}
+
               {tab === "files" && (
                 <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
-                  <FilesList onOpenUrl={openFile} />
+                  <FilesList onOpenUrl={openFile} hideHeader />
                 </Box>
               )}
             </Box>
-            <BottomNav tab={tab} onChange={setTab} alertsUnread={alertsUnread} showHome={showHome} />
+            <BottomNav
+              tab={tab}
+              onChange={setTab}
+              alertsUnread={alertsUnread}
+              showHome={showHome}
+            />
           </>
         )}
       </Box>
