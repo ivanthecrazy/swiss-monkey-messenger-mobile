@@ -3,6 +3,9 @@ import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
@@ -13,20 +16,27 @@ export type MoreEntry = {
   onClick: () => void;
 };
 
-// What the More tab opens, in order. Work Diary, Reports and My Profile only appear
-// when the platform has them on for this user (see Messenger).
+// What the More tab opens, in order. Work Diary, Reports, Compliance Center, Payments,
+// Billing & Payments (an office user's) and My Profile only appear when the platform
+// has them on for this user (see Messenger).
 export const moreEntries = ({
-  openFiles, openWorkDiary, openReports, openProfile, openSettings,
+  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openBilling, openProfile, openSettings,
 }: {
   openFiles: () => void;
   openWorkDiary?: () => void;
   openReports?: () => void;
+  openPayments?: () => void;
+  openCompliance?: () => void;
+  openBilling?: () => void;
   openProfile?: () => void;
   openSettings: () => void;
 }): MoreEntry[] => [
   { key: "files", label: "Files", Icon: DescriptionOutlinedIcon, onClick: openFiles },
   ...(openWorkDiary ? [{ key: "time", label: "Work Diary", Icon: AccessTimeRoundedIcon, onClick: openWorkDiary }] : []),
   ...(openReports ? [{ key: "reports", label: "Productivity Reports", Icon: AssessmentOutlinedIcon, onClick: openReports }] : []),
+  ...(openCompliance ? [{ key: "compliance", label: "Compliance Center", Icon: VerifiedUserOutlinedIcon, onClick: openCompliance }] : []),
+  ...(openPayments ? [{ key: "payments", label: "Payments", Icon: PaymentsOutlinedIcon, onClick: openPayments }] : []),
+  ...(openBilling ? [{ key: "billing", label: "Billing & Payments", Icon: ReceiptLongOutlinedIcon, onClick: openBilling }] : []),
   ...(openProfile ? [{ key: "profile", label: "My Profile", Icon: PersonOutlineRoundedIcon, onClick: openProfile }] : []),
   { key: "settings", label: "Settings", Icon: SettingsOutlinedIcon, onClick: openSettings },
 ];

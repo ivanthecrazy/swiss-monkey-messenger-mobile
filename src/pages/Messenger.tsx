@@ -11,7 +11,8 @@ import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
   GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList, ContractorDashboardScreen,
-  OwnProfileScreen, WorkDiaryScreen, fetchDiaryPositions, resolveWebLink, ProductivityReportsScreen,
+  OwnProfileScreen, WorkDiaryScreen, fetchDiaryPositions, resolveWebLink, ProductivityReportsScreen, PaymentsScreen,
+  ComplianceCenterScreen,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
 import { getTokenStore, authGet } from "@regimenthq/shell-auth";
@@ -22,6 +23,8 @@ import BottomNav, { MessengerTab } from "../components/BottomNav.tsx";
 import MoreMenu, { moreEntries } from "../components/MoreMenu.tsx";
 import { registerPush } from "../services/push.ts";
 import { PLATFORM_ORIGIN } from "../services/config.ts";
+import { useCurrentOrganization } from "../services/currentOrganization.ts";
+import OrganizationBilling, { OrganizationPill } from "../components/OrganizationBilling.tsx";
 
 // Single-pane mobile messenger. A bottom nav switches between Chats (grouped list +
 // search), Alerts, More and — for pros — Home; More lists the rest (Files, and for
@@ -32,11 +35,15 @@ import { PLATFORM_ORIGIN } from "../services/config.ts";
 // shell runs — so the two stay in sync.
 // The screens under More get a back arrow (to the More list) and this title in
 // place of the user block.
-// Productivity Reports titles itself, so its bar carries the arrow alone.
+// Productivity Reports, Payments and the Compliance Center title themselves, so their
+// bars carry the arrow alone.
 const MORE_TITLES: Partial<Record<MessengerTab, string>> = {
   files: "Files",
   time: "Work Diary",
   reports: "",
+  payments: "",
+  compliance: "",
+  billing: "",
 };
 
 const Messenger = () => {
@@ -64,6 +71,25 @@ const Messenger = () => {
   const [showWorkDiary, setShowWorkDiary] = useState(false);
   // A pro's productivity reports (ENABLE_APP_PRODUCTIVITY_REPORTS), under More.
   const [showReports, setShowReports] = useState(false);
+  // A pro's Payments page (ENABLE_APP_PAYMENTS), under More.
+  const [showPayments, setShowPayments] = useState(false);
+  // A pro's Compliance Center (ENABLE_APP_COMPLIANCE_CENTER), under More. Also opened
+  // by Home's and the profile's compliance links; Back then returns there.
+  const [showCompliance, setShowCompliance] = useState(false);
+  const [complianceFrom, setComplianceFrom] = useState<{ tab: MessengerTab; profile: boolean } | null>(null);
+  // An office user's organization Billing & Payments (ENABLE_APP_ORG_BILLING), under
+  // More: for the current organization (picked in that screen's bar) when it grants
+  // them view_billing, and for an admin always (the screen asks them to pick one).
+  const [orgBillingEnabled, setOrgBillingEnabled] = useState(false);
+  const { current: currentOrganization, allOrganizations } = useCurrentOrganization();
+  const showBilling = orgBillingEnabled && Boolean(currentOrganization?.permissions.view_billing || allOrganizations);
+  // Bumped when the in-app browser closes (the pro coming back from Stripe), which
+  // doesn't focus the web view, so the Payments screen reloads the account's state.
+  const [browserClosedAt, setBrowserClosedAt] = useState(0);
+  useEffect(() => {
+    const handle = Browser.addListener("browserFinished", () => setBrowserClosedAt(Date.now()));
+    return () => { handle.then((h) => h.remove()).catch(() => {}); };
+  }, []);
   // Set while Reports was opened from a Home link (an office's report, or its View
   // All): which report to show, and Back returns to Home instead of More.
   const [reportsFromHome, setReportsFromHome] = useState<{
@@ -74,10 +100,16 @@ const Messenger = () => {
     const isContractor = (currentUser as { user_type?: string } | null)?.user_type === "contractor";
     authGet<{
       enable_app_dashboard?: boolean; enable_work_diary?: boolean; enable_productivity_reports?: boolean;
+      enable_payments?: boolean; enable_compliance_center?: boolean; enable_org_billing?: boolean;
     }>("config")
       .then((cfg) => {
         setShowHome(isContractor && cfg?.enable_app_dashboard === true);
         setShowReports(isContractor && cfg?.enable_productivity_reports === true);
+        setShowPayments(isContractor && cfg?.enable_payments === true);
+        setShowCompliance(isContractor && cfg?.enable_compliance_center === true);
+        // The organization side is for office users (a legacy office account has no
+        // user_type); contractors' pages are the pro ones above.
+        setOrgBillingEnabled(!isContractor && cfg?.enable_org_billing === true);
         if (cfg?.enable_work_diary !== true) return;
         fetchDiaryPositions()
           .then((positions) => setShowWorkDiary(positions.length > 0))
@@ -253,6 +285,11 @@ const Messenger = () => {
     Browser.open({ url });
   };
   const openFile = (url: string) => { window.open(url, "_blank"); };
+  const openCompliance = (from: { tab: MessengerTab; profile: boolean } | null) => {
+    setComplianceFrom(from);
+    setProfileOpen(false);
+    setTab("compliance");
+  };
 
   const backHeader = (onBack: () => void, title?: string, right?: ReactNode) => (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 1, py: 0.5, borderBottom: "1px solid #EBEBF1", flexShrink: 0 }}>
@@ -284,7 +321,10 @@ const Messenger = () => {
           <>
             {backHeader(() => setProfileOpen(false), "My Profile")}
             <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-              <OwnProfileScreen openExternal={(url) => { Browser.open({ url }); }} />
+              <OwnProfileScreen
+                openExternal={(url) => { Browser.open({ url }); }}
+                onOpenComplianceCenter={showCompliance ? () => openCompliance({ tab, profile: true }) : undefined}
+              />
             </Box>
           </>
         ) : showTasksPanel ? (
@@ -331,10 +371,14 @@ const Messenger = () => {
                 if (tab === "reports" && reportsFromHome) {
                   setReportsFromHome(null);
                   setTab("home");
+                } else if (tab === "compliance" && complianceFrom) {
+                  setComplianceFrom(null);
+                  setTab(complianceFrom.tab);
+                  setProfileOpen(complianceFrom.profile);
                 } else {
                   setTab("more");
                 }
-              }, MORE_TITLES[tab])
+              }, MORE_TITLES[tab], tab === "billing" ? <OrganizationPill /> : undefined)
             ) : (
               <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
             )}
@@ -411,6 +455,7 @@ const Messenger = () => {
                       setReportsFromHome({ report });
                       setTab("reports");
                     } : undefined}
+                    onOpenComplianceCenter={showCompliance ? () => openCompliance({ tab: "home", profile: false }) : undefined}
                   />
                 </Box>
               )}
@@ -432,6 +477,9 @@ const Messenger = () => {
                     openFiles: () => setTab("files"),
                     openWorkDiary: showWorkDiary ? () => setTab("time") : undefined,
                     openReports: showReports ? () => { setReportsFromHome(null); setTab("reports"); } : undefined,
+                    openPayments: showPayments ? () => setTab("payments") : undefined,
+                    openCompliance: showCompliance ? () => openCompliance(null) : undefined,
+                    openBilling: showBilling ? () => setTab("billing") : undefined,
                     openProfile: showHome ? () => setProfileOpen(true) : undefined,
                     openSettings: () => navigate("/settings"),
                   })}
@@ -447,6 +495,38 @@ const Messenger = () => {
                     openReport={reportsFromHome?.report ?? undefined}
                   />
                 </Box>
+              )}
+
+              {tab === "payments" && showPayments && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  {/* Stripe opens in the in-app browser; its last page says to come
+                      back, and the screen reloads when the app regains focus. */}
+                  <PaymentsScreen
+                    displayCurrency={(currentUser as { currency?: string } | null)?.currency}
+                    onOpenUrl={(url) => { Browser.open({ url }); }}
+                    refreshSignal={browserClosedAt}
+                  />
+                </Box>
+              )}
+
+              {tab === "compliance" && showCompliance && (
+                <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  {/* Stripe and the verification provider open in the in-app browser;
+                      the screen reloads when it closes or the app regains focus. */}
+                  <ComplianceCenterScreen
+                    onOpenUrl={(url) => { Browser.open({ url }); }}
+                    onOpenWebPath={openPlatformUrl}
+                    refreshSignal={browserClosedAt}
+                  />
+                </Box>
+              )}
+
+              {tab === "billing" && showBilling && (
+                <OrganizationBilling
+                  onOpenUrl={(url) => { Browser.open({ url }); }}
+                  onOpenWebPath={openPlatformUrl}
+                  refreshSignal={browserClosedAt}
+                />
               )}
 
               {tab === "time" && (

@@ -6,9 +6,10 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
 // Every screen at the list level. Home, Chats and Alerts have their own bar buttons;
 // the rest live under More (see MoreMenu), which stays highlighted while one is open.
-export type MessengerTab = "home" | "chats" | "alerts" | "more" | "files" | "time" | "reports";
+export type MessengerTab =
+  "home" | "chats" | "alerts" | "more" | "files" | "time" | "reports" | "payments" | "compliance" | "billing";
 
-export const MORE_TABS: MessengerTab[] = ["more", "files", "time", "reports"];
+export const MORE_TABS: MessengerTab[] = ["more", "files", "time", "reports", "payments", "compliance", "billing"];
 
 type BarKey = "home" | "chats" | "alerts" | "more";
 

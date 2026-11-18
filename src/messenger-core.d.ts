@@ -133,6 +133,16 @@ declare module "@regimenthq/messenger-core" {
     openReport?: { organizationSlug: string; id: number };
   }>;
 
+  // A pro's Payments page: the Stripe payout account and the payment history
+  // (GET /api/payments). Stripe pages and invoices open through onOpenUrl; the screen
+  // reloads when the window regains focus (the pro coming back from Stripe).
+  export const PaymentsScreen: ComponentType<{
+    displayCurrency?: string;
+    onOpenUrl: (url: string) => void;
+    // Any value; a change reloads the page (e.g. when an in-app browser closes).
+    refreshSignal?: unknown;
+  }>;
+
   // "All Files" across the user's conversations. Downloads delegated to the host.
   export const FilesList: ComponentType<{
     onOpenUrl?: (url: string) => void;
@@ -148,6 +158,8 @@ declare module "@regimenthq/messenger-core" {
     // Report links (/organizations/:slug/productivity_logs[/:id]) open the in-app
     // reports instead: null for the list, the report otherwise.
     onOpenReports?: (report: { organizationSlug: string; id: number } | null) => void;
+    // Compliance center links (/compliance_center) open the in-app one instead.
+    onOpenComplianceCenter?: () => void;
   }>;
 
   // A web path → a one-time signed-in handoff URL (POST /api/web_sessions); absolute
@@ -158,6 +170,31 @@ declare module "@regimenthq/messenger-core" {
   // scrolling panel; web-only links go through the sign-in handoff to openExternal.
   export const OwnProfileScreen: ComponentType<{
     openExternal: (url: string) => void;
+    // Compliance center links (/compliance_center) open the in-app one instead.
+    onOpenComplianceCenter?: () => void;
+  }>;
+
+  // A pro's Compliance Center: identity verification, background check, HIPAA and
+  // PIPEDA/PHIPA certificates and legal agreements (GET /api/compliance_center).
+  // Stripe Checkout, the verification provider and certificates open through
+  // onOpenUrl; the screen reloads when the window regains focus (the pro coming back).
+  export const ComplianceCenterScreen: ComponentType<{
+    onOpenUrl: (url: string) => void;
+    // A web path to open signed in (an agreement to save or print).
+    onOpenWebPath?: (path: string) => void;
+    // Any value; a change reloads the page (e.g. when an in-app browser closes).
+    refreshSignal?: unknown;
+  }>;
+
+  // An organization's Billing & Payments (GET /api/organizations/:slug/billing, for
+  // members with view_billing). The Stripe Billing Portal opens through onOpenUrl;
+  // receipts and timesheets through onOpenWebPath. Reloads when the window regains focus.
+  export const OrganizationBillingScreen: ComponentType<{
+    slug: string;
+    onOpenUrl: (url: string) => void;
+    onOpenWebPath: (path: string) => void;
+    // Any value; a change reloads the page (e.g. when an in-app browser closes).
+    refreshSignal?: unknown;
   }>;
 }
 
