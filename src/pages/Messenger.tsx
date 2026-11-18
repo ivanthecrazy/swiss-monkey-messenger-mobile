@@ -24,7 +24,9 @@ import MoreMenu, { moreEntries } from "../components/MoreMenu.tsx";
 import { registerPush } from "../services/push.ts";
 import { PLATFORM_ORIGIN } from "../services/config.ts";
 import { useCurrentOrganization } from "../services/currentOrganization.ts";
-import OrganizationBilling, { OrganizationPill } from "../components/OrganizationBilling.tsx";
+import OrganizationBilling from "../components/OrganizationBilling.tsx";
+import OrganizationTeam from "../components/OrganizationTeam.tsx";
+import OrganizationPill from "../components/OrganizationPill.tsx";
 
 // Single-pane mobile messenger. A bottom nav switches between Chats (grouped list +
 // search), Alerts, More and — for pros — Home; More lists the rest (Files, and for
@@ -44,6 +46,7 @@ const MORE_TITLES: Partial<Record<MessengerTab, string>> = {
   payments: "",
   compliance: "",
   billing: "",
+  team: "",
 };
 
 const Messenger = () => {
@@ -83,6 +86,9 @@ const Messenger = () => {
   const [orgBillingEnabled, setOrgBillingEnabled] = useState(false);
   const { current: currentOrganization, allOrganizations } = useCurrentOrganization();
   const showBilling = orgBillingEnabled && Boolean(currentOrganization?.permissions.view_billing || allOrganizations);
+  // Its Team Members (ENABLE_APP_ORG_TEAM), the same way, for those who may manage the team.
+  const [orgTeamEnabled, setOrgTeamEnabled] = useState(false);
+  const showTeam = orgTeamEnabled && Boolean(currentOrganization?.permissions.manage_users || allOrganizations);
   // Bumped when the in-app browser closes (the pro coming back from Stripe), which
   // doesn't focus the web view, so the Payments screen reloads the account's state.
   const [browserClosedAt, setBrowserClosedAt] = useState(0);
@@ -101,6 +107,7 @@ const Messenger = () => {
     authGet<{
       enable_app_dashboard?: boolean; enable_work_diary?: boolean; enable_productivity_reports?: boolean;
       enable_payments?: boolean; enable_compliance_center?: boolean; enable_org_billing?: boolean;
+      enable_org_team?: boolean;
     }>("config")
       .then((cfg) => {
         setShowHome(isContractor && cfg?.enable_app_dashboard === true);
@@ -110,6 +117,7 @@ const Messenger = () => {
         // The organization side is for office users (a legacy office account has no
         // user_type); contractors' pages are the pro ones above.
         setOrgBillingEnabled(!isContractor && cfg?.enable_org_billing === true);
+        setOrgTeamEnabled(!isContractor && cfg?.enable_org_team === true);
         if (cfg?.enable_work_diary !== true) return;
         fetchDiaryPositions()
           .then((positions) => setShowWorkDiary(positions.length > 0))
@@ -378,7 +386,7 @@ const Messenger = () => {
                 } else {
                   setTab("more");
                 }
-              }, MORE_TITLES[tab], tab === "billing" ? <OrganizationPill /> : undefined)
+              }, MORE_TITLES[tab], tab === "billing" || tab === "team" ? <OrganizationPill /> : undefined)
             ) : (
               <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
             )}
@@ -479,6 +487,7 @@ const Messenger = () => {
                     openReports: showReports ? () => { setReportsFromHome(null); setTab("reports"); } : undefined,
                     openPayments: showPayments ? () => setTab("payments") : undefined,
                     openCompliance: showCompliance ? () => openCompliance(null) : undefined,
+                    openTeam: showTeam ? () => setTab("team") : undefined,
                     openBilling: showBilling ? () => setTab("billing") : undefined,
                     openProfile: showHome ? () => setProfileOpen(true) : undefined,
                     openSettings: () => navigate("/settings"),
@@ -520,6 +529,8 @@ const Messenger = () => {
                   />
                 </Box>
               )}
+
+              {tab === "team" && showTeam && <OrganizationTeam />}
 
               {tab === "billing" && showBilling && (
                 <OrganizationBilling

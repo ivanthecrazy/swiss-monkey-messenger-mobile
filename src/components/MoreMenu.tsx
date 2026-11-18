@@ -6,6 +6,7 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
@@ -17,16 +18,18 @@ export type MoreEntry = {
 };
 
 // What the More tab opens, in order. Work Diary, Reports, Compliance Center, Payments,
-// Billing & Payments (an office user's) and My Profile only appear when the platform
+// Team Members and Billing & Payments (an office user's) and My Profile only appear when the platform
 // has them on for this user (see Messenger).
 export const moreEntries = ({
-  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openBilling, openProfile, openSettings,
+  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openTeam, openBilling, openProfile,
+  openSettings,
 }: {
   openFiles: () => void;
   openWorkDiary?: () => void;
   openReports?: () => void;
   openPayments?: () => void;
   openCompliance?: () => void;
+  openTeam?: () => void;
   openBilling?: () => void;
   openProfile?: () => void;
   openSettings: () => void;
@@ -36,6 +39,7 @@ export const moreEntries = ({
   ...(openReports ? [{ key: "reports", label: "Productivity Reports", Icon: AssessmentOutlinedIcon, onClick: openReports }] : []),
   ...(openCompliance ? [{ key: "compliance", label: "Compliance Center", Icon: VerifiedUserOutlinedIcon, onClick: openCompliance }] : []),
   ...(openPayments ? [{ key: "payments", label: "Payments", Icon: PaymentsOutlinedIcon, onClick: openPayments }] : []),
+  ...(openTeam ? [{ key: "team", label: "Team Members", Icon: GroupsOutlinedIcon, onClick: openTeam }] : []),
   ...(openBilling ? [{ key: "billing", label: "Billing & Payments", Icon: ReceiptLongOutlinedIcon, onClick: openBilling }] : []),
   ...(openProfile ? [{ key: "profile", label: "My Profile", Icon: PersonOutlineRoundedIcon, onClick: openProfile }] : []),
   { key: "settings", label: "Settings", Icon: SettingsOutlinedIcon, onClick: openSettings },

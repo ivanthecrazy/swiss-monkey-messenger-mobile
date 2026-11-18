@@ -189,6 +189,11 @@ declare module "@regimenthq/messenger-core" {
   // An organization's Billing & Payments (GET /api/organizations/:slug/billing, for
   // members with view_billing). The Stripe Billing Portal opens through onOpenUrl;
   // receipts and timesheets through onOpenWebPath. Reloads when the window regains focus.
+  // An organization's Team Members (GET /api/organizations/:slug/team, for members who
+  // may manage the team): list, invite, edit, access level, remove, a professional's
+  // schedule and report metrics. Loads its own data.
+  export const OrganizationTeamScreen: ComponentType<{ slug: string }>;
+
   export const OrganizationBillingScreen: ComponentType<{
     slug: string;
     onOpenUrl: (url: string) => void;
