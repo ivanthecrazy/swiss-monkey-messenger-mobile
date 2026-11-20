@@ -28,6 +28,9 @@ const DEFAULT_FLAGS = {
   enableTaskAssistant: false,
   // CircleCo until the server says the internal /help site is live.
   enablePublicKnowledgeBase: false,
+  // Contracts page (as on the web): off until the server says otherwise.
+  enableOfferAcknowledgements: false,
+  enableGiveBonus: false,
   // Links shown or copied in the app (a profile's public URL) point at the platform.
   platformOrigin: PLATFORM_ORIGIN,
 };
@@ -38,6 +41,8 @@ type ServerConfig = {
   enable_mentions?: boolean;
   enable_task_assistant?: boolean;
   enable_public_knowledge_base?: boolean;
+  enable_offer_acknowledgements?: boolean;
+  enable_give_bonus?: boolean;
 };
 
 // Pull the messenger feature flags from the platform (GET /api/config) so the
@@ -57,6 +62,10 @@ const loadFeatureFlags = async () => {
       enableTaskAssistant: cfg.enable_task_assistant === true,
       // Where "Resources" links go (internal /help vs CircleCo), as on the web.
       enablePublicKnowledgeBase: cfg.enable_public_knowledge_base === true,
+      // The Contracts page: offers ask for acknowledgment boxes (and a rate only changes
+      // through Change rate); Give Bonus.
+      enableOfferAcknowledgements: cfg.enable_offer_acknowledgements === true,
+      enableGiveBonus: cfg.enable_give_bonus === true,
       platformOrigin: PLATFORM_ORIGIN,
       // No org context in the desktop shell; only used for the web deep-link.
       currentOrganization: null,

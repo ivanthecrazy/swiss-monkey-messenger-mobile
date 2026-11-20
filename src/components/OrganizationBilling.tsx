@@ -8,12 +8,14 @@ import OrganizationPicker from "./OrganizationPicker.tsx";
 // The screen is messenger-core's, shared with the desktop and the web's billing page.
 // The Stripe Billing Portal opens in the in-app browser; its last page says to come
 // back, and the screen reloads when it closes (refreshSignal) or the app regains focus.
-// Receipts and timesheets stay on the web and open there signed in.
+// Receipts stay on the web and open there signed in; a pending row's timer icon opens the
+// app's Timesheets (onOpenTimesheets) while they're on, the web page otherwise.
 const OrganizationBilling = ({
-  onOpenUrl, onOpenWebPath, refreshSignal,
+  onOpenUrl, onOpenWebPath, onOpenTimesheets, refreshSignal,
 }: {
   onOpenUrl: (url: string) => void;
   onOpenWebPath: (path: string) => void;
+  onOpenTimesheets?: (target: { slug: string; startDate: string; userId: number | string }) => void;
   refreshSignal?: unknown;
 }) => {
   const { loaded, current, allOrganizations } = useCurrentOrganization();
@@ -26,6 +28,7 @@ const OrganizationBilling = ({
         slug={current.slug}
         onOpenUrl={onOpenUrl}
         onOpenWebPath={onOpenWebPath}
+        onOpenTimesheets={onOpenTimesheets}
         refreshSignal={refreshSignal}
       />
     );

@@ -26,6 +26,8 @@ import { PLATFORM_ORIGIN } from "../services/config.ts";
 import { useCurrentOrganization } from "../services/currentOrganization.ts";
 import OrganizationBilling from "../components/OrganizationBilling.tsx";
 import OrganizationTeam from "../components/OrganizationTeam.tsx";
+import OrganizationContracts from "../components/OrganizationContracts.tsx";
+import OrganizationTimesheets from "../components/OrganizationTimesheets.tsx";
 import OrganizationPill from "../components/OrganizationPill.tsx";
 
 // Single-pane mobile messenger. A bottom nav switches between Chats (grouped list +
@@ -47,6 +49,8 @@ const MORE_TITLES: Partial<Record<MessengerTab, string>> = {
   compliance: "",
   billing: "",
   team: "",
+  contracts: "",
+  timesheets: "",
 };
 
 const Messenger = () => {
@@ -89,6 +93,14 @@ const Messenger = () => {
   // Its Team Members (ENABLE_APP_ORG_TEAM), the same way, for those who may manage the team.
   const [orgTeamEnabled, setOrgTeamEnabled] = useState(false);
   const showTeam = orgTeamEnabled && Boolean(currentOrganization?.permissions.manage_users || allOrganizations);
+  const [orgContractsEnabled, setOrgContractsEnabled] = useState(false);
+  // Timesheets have no permission of their own: any office member of the organization.
+  const [orgTimesheetsEnabled, setOrgTimesheetsEnabled] = useState(false);
+  const showTimesheets = orgTimesheetsEnabled && Boolean(currentOrganization || allOrganizations);
+  // Billing's timer links open the Timesheets on that week and professional.
+  const [timesheetsLink, setTimesheetsLink] = useState<{ startDate: string; userId: number | string } | null>(null);
+  const showContracts = orgContractsEnabled
+    && Boolean(currentOrganization?.permissions.manage_contracts || allOrganizations);
   // Bumped when the in-app browser closes (the pro coming back from Stripe), which
   // doesn't focus the web view, so the Payments screen reloads the account's state.
   const [browserClosedAt, setBrowserClosedAt] = useState(0);
@@ -107,7 +119,7 @@ const Messenger = () => {
     authGet<{
       enable_app_dashboard?: boolean; enable_work_diary?: boolean; enable_productivity_reports?: boolean;
       enable_payments?: boolean; enable_compliance_center?: boolean; enable_org_billing?: boolean;
-      enable_org_team?: boolean;
+      enable_org_team?: boolean; enable_org_contracts?: boolean; enable_org_timesheets?: boolean;
     }>("config")
       .then((cfg) => {
         setShowHome(isContractor && cfg?.enable_app_dashboard === true);
@@ -118,6 +130,8 @@ const Messenger = () => {
         // user_type); contractors' pages are the pro ones above.
         setOrgBillingEnabled(!isContractor && cfg?.enable_org_billing === true);
         setOrgTeamEnabled(!isContractor && cfg?.enable_org_team === true);
+        setOrgContractsEnabled(!isContractor && cfg?.enable_org_contracts === true);
+        setOrgTimesheetsEnabled(!isContractor && cfg?.enable_org_timesheets === true);
         if (cfg?.enable_work_diary !== true) return;
         fetchDiaryPositions()
           .then((positions) => setShowWorkDiary(positions.length > 0))
@@ -386,7 +400,8 @@ const Messenger = () => {
                 } else {
                   setTab("more");
                 }
-              }, MORE_TITLES[tab], tab === "billing" || tab === "team" ? <OrganizationPill /> : undefined)
+              }, MORE_TITLES[tab], tab === "billing" || tab === "team" || tab === "contracts" || tab === "timesheets"
+                ? <OrganizationPill /> : undefined)
             ) : (
               <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
             )}
@@ -487,6 +502,8 @@ const Messenger = () => {
                     openReports: showReports ? () => { setReportsFromHome(null); setTab("reports"); } : undefined,
                     openPayments: showPayments ? () => setTab("payments") : undefined,
                     openCompliance: showCompliance ? () => openCompliance(null) : undefined,
+                    openContracts: showContracts ? () => setTab("contracts") : undefined,
+                    openTimesheets: showTimesheets ? () => { setTimesheetsLink(null); setTab("timesheets"); } : undefined,
                     openTeam: showTeam ? () => setTab("team") : undefined,
                     openBilling: showBilling ? () => setTab("billing") : undefined,
                     openProfile: showHome ? () => setProfileOpen(true) : undefined,
@@ -532,10 +549,19 @@ const Messenger = () => {
 
               {tab === "team" && showTeam && <OrganizationTeam />}
 
+              {tab === "contracts" && showContracts && <OrganizationContracts onOpenWebPath={openPlatformUrl} />}
+
+              {tab === "timesheets" && showTimesheets && (
+                <OrganizationTimesheets link={timesheetsLink} onOpenUrl={(url) => { Browser.open({ url }); }} />
+              )}
+
               {tab === "billing" && showBilling && (
                 <OrganizationBilling
                   onOpenUrl={(url) => { Browser.open({ url }); }}
                   onOpenWebPath={openPlatformUrl}
+                  onOpenTimesheets={showTimesheets
+                    ? ({ startDate, userId }) => { setTimesheetsLink({ startDate, userId }); setTab("timesheets"); }
+                    : undefined}
                   refreshSignal={browserClosedAt}
                 />
               )}

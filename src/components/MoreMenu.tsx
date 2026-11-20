@@ -7,6 +7,8 @@ import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
@@ -18,10 +20,10 @@ export type MoreEntry = {
 };
 
 // What the More tab opens, in order. Work Diary, Reports, Compliance Center, Payments,
-// Team Members and Billing & Payments (an office user's) and My Profile only appear when the platform
+// Contracts, Timesheets, Team Members and Billing & Payments (an office user's) and My Profile only appear when the platform
 // has them on for this user (see Messenger).
 export const moreEntries = ({
-  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openTeam, openBilling, openProfile,
+  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openContracts, openTimesheets, openTeam, openBilling, openProfile,
   openSettings,
 }: {
   openFiles: () => void;
@@ -29,6 +31,8 @@ export const moreEntries = ({
   openReports?: () => void;
   openPayments?: () => void;
   openCompliance?: () => void;
+  openContracts?: () => void;
+  openTimesheets?: () => void;
   openTeam?: () => void;
   openBilling?: () => void;
   openProfile?: () => void;
@@ -39,6 +43,8 @@ export const moreEntries = ({
   ...(openReports ? [{ key: "reports", label: "Productivity Reports", Icon: AssessmentOutlinedIcon, onClick: openReports }] : []),
   ...(openCompliance ? [{ key: "compliance", label: "Compliance Center", Icon: VerifiedUserOutlinedIcon, onClick: openCompliance }] : []),
   ...(openPayments ? [{ key: "payments", label: "Payments", Icon: PaymentsOutlinedIcon, onClick: openPayments }] : []),
+  ...(openContracts ? [{ key: "contracts", label: "Contracts", Icon: HandshakeOutlinedIcon, onClick: openContracts }] : []),
+  ...(openTimesheets ? [{ key: "timesheets", label: "Timesheets", Icon: PendingActionsOutlinedIcon, onClick: openTimesheets }] : []),
   ...(openTeam ? [{ key: "team", label: "Team Members", Icon: GroupsOutlinedIcon, onClick: openTeam }] : []),
   ...(openBilling ? [{ key: "billing", label: "Billing & Payments", Icon: ReceiptLongOutlinedIcon, onClick: openBilling }] : []),
   ...(openProfile ? [{ key: "profile", label: "My Profile", Icon: PersonOutlineRoundedIcon, onClick: openProfile }] : []),

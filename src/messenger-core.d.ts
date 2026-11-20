@@ -194,12 +194,28 @@ declare module "@regimenthq/messenger-core" {
   // schedule and report metrics. Loads its own data.
   export const OrganizationTeamScreen: ComponentType<{ slug: string }>;
 
+  // The organization's Contracts (ENABLE_APP_ORG_CONTRACTS): search, status filter, rate,
+  // weekly limit, toolkit, BAA, bonus, closing and rehiring. Loads its own data; web pages
+  // (an office's playbook, a job) open through onOpenWebPath.
+  export const OrganizationContractsScreen: ComponentType<{ slug: string; onOpenWebPath?: (path: string) => void }>;
+
   export const OrganizationBillingScreen: ComponentType<{
     slug: string;
     onOpenUrl: (url: string) => void;
     onOpenWebPath: (path: string) => void;
+    // A pending row's timer icon: the app's own Timesheets on that week and professional.
+    onOpenTimesheets?: (target: { slug: string; startDate: string; userId: number | string }) => void;
     // Any value; a change reloads the page (e.g. when an in-app browser closes).
     refreshSignal?: unknown;
+  }>;
+
+  // The organization's Timesheets (ENABLE_APP_ORG_TIMESHEETS): the week per professional,
+  // their sessions, Give Bonus and the manual time requests. Loads its own data.
+  export const OrganizationTimesheetsScreen: ComponentType<{
+    slug: string;
+    startDate?: string | null;
+    userId?: number | string | null;
+    onOpenUrl?: (url: string) => void;
   }>;
 }
 
