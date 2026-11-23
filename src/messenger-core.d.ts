@@ -104,6 +104,7 @@ declare module "@regimenthq/messenger-core" {
     onOpenChat?: (chatId: number, messageId?: number) => void;
     onOpenUrl?: (path: string) => void;
     onUnreadChange?: (count: number) => void;
+    onOpenAttachment?: (url: string) => void;
     hideHeader?: boolean;
   }>;
 

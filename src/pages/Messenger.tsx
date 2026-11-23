@@ -142,6 +142,16 @@ const Messenger = () => {
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [alertsUnread, setAlertsUnread] = useState(0);
+  // The Alerts badge: seeded here, then live from the cable (the list keeps it in sync
+  // while it's open).
+  useEffect(() => {
+    authGet("notifications")
+      .then((d) => setAlertsUnread((d as { unread_count?: number } | null)?.unread_count || 0))
+      .catch(() => {});
+    const onChange = (e: Event) => setAlertsUnread((e as CustomEvent).detail?.count || 0);
+    window.addEventListener("notificationsChanged", onChange);
+    return () => window.removeEventListener("notificationsChanged", onChange);
+  }, []);
   // Bumped to force the grouped list to refetch (pull-to-refresh).
   const [groupRefresh, setGroupRefresh] = useState(0);
 
@@ -231,7 +241,18 @@ const Messenger = () => {
 
   useEffect(() => {
     startMessenger();
-    registerPush((chatId) => openChat(chatId));
+    registerPush((target) => {
+      if ("chatId" in target) {
+        openChat(target.chatId);
+        return;
+      }
+      // Whatever is open over the tabs gives way to Alerts.
+      setProfileOpen(false);
+      setTasksOpen(false);
+      setOpeningChat(false);
+      setSelectedChatId(null);
+      setTab("alerts");
+    });
     loadWorkingSet();
     return () => stopMessenger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -490,6 +511,7 @@ const Messenger = () => {
                     onOpenChat={(chatId, messageId) => openChat(chatId, messageId ?? null)}
                     onOpenUrl={openPlatformUrl}
                     onUnreadChange={setAlertsUnread}
+                    onOpenAttachment={(url) => { Browser.open({ url }); }}
                   />
                 </Box>
               )}

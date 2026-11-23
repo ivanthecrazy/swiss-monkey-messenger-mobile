@@ -11,15 +11,18 @@ import { authDelete, authPost } from "@regimenthq/shell-auth";
 let registeredToken: string | null = null;
 let listenersBound = false;
 
-// The current "open this chat" handler and a buffer for a tap that arrives before
+// What a tapped notification opens: a chat, or Alerts.
+type PushTarget = { chatId: number } | { screen: "alerts" };
+
+// The current "open this" handler and a buffer for a tap that arrives before
 // one is set (cold start: the OS can deliver the launch tap before the UI has
 // registered its handler). The buffered tap is flushed as soon as a handler binds.
-let openHandler: ((chatId: number) => void) | null = null;
-let pendingChatId: number | null = null;
+let openHandler: ((target: PushTarget) => void) | null = null;
+let pendingTarget: PushTarget | null = null;
 
-const handleTap = (chatId: number) => {
-  if (openHandler) openHandler(chatId);
-  else pendingChatId = chatId;
+const handleTap = (target: PushTarget) => {
+  if (openHandler) openHandler(target);
+  else pendingTarget = target;
 };
 
 // A stable id for this install, persisted in localStorage (survives app restarts
@@ -48,18 +51,18 @@ const sendToken = async (token: string) => {
   registeredToken = token;
 };
 
-// Ask for permission, register the token, and keep it fresh. `onOpenChat` is
-// invoked when the user taps a notification (the chat id rides in FCM `data`).
-export const registerPush = async (onOpenChat?: (chatId: number) => void) => {
+// Ask for permission, register the token, and keep it fresh. `onOpen` is
+// invoked when the user taps a notification (its target rides in FCM `data`).
+export const registerPush = async (onOpen?: (target: PushTarget) => void) => {
   if (!Capacitor.isNativePlatform()) return;
 
   // Keep the handler current across remounts, then flush a tap that landed before
   // it was ready (the launch tap on a cold start).
-  openHandler = onOpenChat ?? null;
-  if (openHandler && pendingChatId != null) {
-    const id = pendingChatId;
-    pendingChatId = null;
-    openHandler(id);
+  openHandler = onOpen ?? null;
+  if (openHandler && pendingTarget) {
+    const target = pendingTarget;
+    pendingTarget = null;
+    openHandler(target);
   }
 
   try {
@@ -83,12 +86,13 @@ export const registerPush = async (onOpenChat?: (chatId: number) => void) => {
         }
       });
 
-      // Tapping the notification opens its chat. The plugin types `data` as `{}`,
+      // Tapping the notification opens its chat, or Alerts. The plugin types `data` as `{}`,
       // so narrow it — FCM data values are always strings.
       await FirebaseMessaging.addListener("notificationActionPerformed", (event) => {
         const data = event.notification?.data as Record<string, string> | undefined;
         const chatId = Number(data?.chat_id);
-        if (chatId) handleTap(chatId);
+        if (chatId) handleTap({ chatId });
+        else if (data?.screen === "alerts") handleTap({ screen: "alerts" });
       });
     }
 
