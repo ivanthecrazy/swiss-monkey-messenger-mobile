@@ -28,6 +28,7 @@ import OrganizationBilling from "../components/OrganizationBilling.tsx";
 import OrganizationTeam from "../components/OrganizationTeam.tsx";
 import OrganizationContracts from "../components/OrganizationContracts.tsx";
 import OrganizationTimesheets from "../components/OrganizationTimesheets.tsx";
+import OrganizationReports from "../components/OrganizationReports.tsx";
 import OrganizationPill from "../components/OrganizationPill.tsx";
 
 // Single-pane mobile messenger. A bottom nav switches between Chats (grouped list +
@@ -51,6 +52,7 @@ const MORE_TITLES: Partial<Record<MessengerTab, string>> = {
   team: "",
   contracts: "",
   timesheets: "",
+  orgReports: "",
 };
 
 const Messenger = () => {
@@ -97,6 +99,9 @@ const Messenger = () => {
   // Timesheets have no permission of their own: any office member of the organization.
   const [orgTimesheetsEnabled, setOrgTimesheetsEnabled] = useState(false);
   const showTimesheets = orgTimesheetsEnabled && Boolean(currentOrganization || allOrganizations);
+  // Its Productivity Reports (ENABLE_APP_ORG_REPORTS), for those with access to reports.
+  const [orgReportsEnabled, setOrgReportsEnabled] = useState(false);
+  const showOrgReports = orgReportsEnabled && Boolean(currentOrganization?.permissions.access_reports || allOrganizations);
   // Billing's timer links open the Timesheets on that week and professional.
   const [timesheetsLink, setTimesheetsLink] = useState<{ startDate: string; userId: number | string } | null>(null);
   const showContracts = orgContractsEnabled
@@ -120,6 +125,7 @@ const Messenger = () => {
       enable_app_dashboard?: boolean; enable_work_diary?: boolean; enable_productivity_reports?: boolean;
       enable_payments?: boolean; enable_compliance_center?: boolean; enable_org_billing?: boolean;
       enable_org_team?: boolean; enable_org_contracts?: boolean; enable_org_timesheets?: boolean;
+      enable_org_reports?: boolean;
     }>("config")
       .then((cfg) => {
         setShowHome(isContractor && cfg?.enable_app_dashboard === true);
@@ -132,6 +138,7 @@ const Messenger = () => {
         setOrgTeamEnabled(!isContractor && cfg?.enable_org_team === true);
         setOrgContractsEnabled(!isContractor && cfg?.enable_org_contracts === true);
         setOrgTimesheetsEnabled(!isContractor && cfg?.enable_org_timesheets === true);
+        setOrgReportsEnabled(!isContractor && cfg?.enable_org_reports === true);
         if (cfg?.enable_work_diary !== true) return;
         fetchDiaryPositions()
           .then((positions) => setShowWorkDiary(positions.length > 0))
@@ -422,6 +429,7 @@ const Messenger = () => {
                   setTab("more");
                 }
               }, MORE_TITLES[tab], tab === "billing" || tab === "team" || tab === "contracts" || tab === "timesheets"
+                || tab === "orgReports"
                 ? <OrganizationPill /> : undefined)
             ) : (
               <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
@@ -526,6 +534,7 @@ const Messenger = () => {
                     openCompliance: showCompliance ? () => openCompliance(null) : undefined,
                     openContracts: showContracts ? () => setTab("contracts") : undefined,
                     openTimesheets: showTimesheets ? () => { setTimesheetsLink(null); setTab("timesheets"); } : undefined,
+                    openOrgReports: showOrgReports ? () => setTab("orgReports") : undefined,
                     openTeam: showTeam ? () => setTab("team") : undefined,
                     openBilling: showBilling ? () => setTab("billing") : undefined,
                     openProfile: showHome ? () => setProfileOpen(true) : undefined,
@@ -575,6 +584,10 @@ const Messenger = () => {
 
               {tab === "timesheets" && showTimesheets && (
                 <OrganizationTimesheets link={timesheetsLink} onOpenUrl={(url) => { Browser.open({ url }); }} />
+              )}
+
+              {tab === "orgReports" && orgReportsEnabled && (
+                <OrganizationReports onOpenUrl={(url) => { Browser.open({ url }); }} />
               )}
 
               {tab === "billing" && showBilling && (

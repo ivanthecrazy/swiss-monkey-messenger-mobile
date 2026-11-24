@@ -20,11 +20,11 @@ export type MoreEntry = {
 };
 
 // What the More tab opens, in order. Work Diary, Reports, Compliance Center, Payments,
-// Contracts, Timesheets, Team Members and Billing & Payments (an office user's) and My Profile only appear when the platform
+// Contracts, Timesheets, the organization's Productivity Reports, Team Members and Billing & Payments (an office user's) and My Profile only appear when the platform
 // has them on for this user (see Messenger).
 export const moreEntries = ({
-  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openContracts, openTimesheets, openTeam, openBilling, openProfile,
-  openSettings,
+  openFiles, openWorkDiary, openReports, openPayments, openCompliance, openContracts, openTimesheets, openOrgReports, openTeam, openBilling,
+  openProfile, openSettings,
 }: {
   openFiles: () => void;
   openWorkDiary?: () => void;
@@ -33,6 +33,7 @@ export const moreEntries = ({
   openCompliance?: () => void;
   openContracts?: () => void;
   openTimesheets?: () => void;
+  openOrgReports?: () => void;
   openTeam?: () => void;
   openBilling?: () => void;
   openProfile?: () => void;
@@ -45,6 +46,7 @@ export const moreEntries = ({
   ...(openPayments ? [{ key: "payments", label: "Payments", Icon: PaymentsOutlinedIcon, onClick: openPayments }] : []),
   ...(openContracts ? [{ key: "contracts", label: "Contracts", Icon: HandshakeOutlinedIcon, onClick: openContracts }] : []),
   ...(openTimesheets ? [{ key: "timesheets", label: "Timesheets", Icon: PendingActionsOutlinedIcon, onClick: openTimesheets }] : []),
+  ...(openOrgReports ? [{ key: "orgReports", label: "Productivity Reports", Icon: AssessmentOutlinedIcon, onClick: openOrgReports }] : []),
   ...(openTeam ? [{ key: "team", label: "Team Members", Icon: GroupsOutlinedIcon, onClick: openTeam }] : []),
   ...(openBilling ? [{ key: "billing", label: "Billing & Payments", Icon: ReceiptLongOutlinedIcon, onClick: openBilling }] : []),
   ...(openProfile ? [{ key: "profile", label: "My Profile", Icon: PersonOutlineRoundedIcon, onClick: openProfile }] : []),

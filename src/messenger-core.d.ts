@@ -210,6 +210,16 @@ declare module "@regimenthq/messenger-core" {
     refreshSignal?: unknown;
   }>;
 
+  // The organization's Productivity Reports (ENABLE_APP_ORG_REPORTS): every professional's
+  // daily reports, then one to read. Key it by the slug. Attachments open through onOpenFile.
+  export const OrganizationReportsScreen: ComponentType<{
+    slug: string;
+    currency?: string;
+    currentUserId?: number;
+    isAdmin?: boolean;
+    onOpenFile: (url: string) => void;
+  }>;
+
   // The organization's Timesheets (ENABLE_APP_ORG_TIMESHEETS): the week per professional,
   // their sessions, Give Bonus and the manual time requests. Loads its own data.
   export const OrganizationTimesheetsScreen: ComponentType<{
