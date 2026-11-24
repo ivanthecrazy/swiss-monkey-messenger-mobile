@@ -1,4 +1,4 @@
-# Swiss Monkey Messenger — Mobile (Capacitor)
+# Swiss Monkey — Mobile (Capacitor)
 
 iOS + Android shell for the Swiss Monkey messenger. It's the same web app the
 desktop (Tauri) shell runs — it reuses the published `@regimenthq/messenger-core`,
