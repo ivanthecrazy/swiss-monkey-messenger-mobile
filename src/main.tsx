@@ -11,9 +11,12 @@ import "@fontsource/lato/900.css";
 // The messenger composer uses react-quill; its stylesheet isn't bundled by the
 // package, so the host loads it.
 import "react-quill/dist/quill.snow.css";
+// The profile wizard's photo crop (messenger-core profileWizard).
+import "react-image-crop/dist/ReactCrop.css";
 import App from "./App.tsx";
-import { configureAuth, getTokenStore } from "@regimenthq/shell-auth";
+import { configureAuth } from "@regimenthq/shell-auth";
 import { API_BASE, CLIENT, PLATFORM, getAppVersion } from "./services/config.ts";
+import { endSession } from "./services/session.ts";
 import { initSentry } from "./services/sentry.ts";
 
 // First, so errors from everything after it are reported.
@@ -29,10 +32,7 @@ configureAuth({
   platform: PLATFORM,
   deviceName: `Mobile (${Capacitor.getPlatform()})`,
   getAppVersion,
-  onUnauthorized: () => {
-    getTokenStore().clear();
-    window.location.href = "/login";
-  },
+  onUnauthorized: endSession,
 });
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

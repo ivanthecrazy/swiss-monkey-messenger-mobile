@@ -74,6 +74,7 @@ declare module "@regimenthq/messenger-core" {
     client?: string;
     platform?: string;
     getAppVersion?: () => string;
+    onUnauthorized?: () => void;
   }): void;
   export function configureMessenger(config: Record<string, unknown>): void;
   export function subscribeToUserChannel(
@@ -166,6 +167,44 @@ declare module "@regimenthq/messenger-core" {
   // A web path → a one-time signed-in handoff URL (POST /api/web_sessions); absolute
   // and mailto: links come back as is. Expires in a minute: open it straight away.
   export function resolveWebLink(href: string): Promise<string>;
+
+  // Signing up as an office (ENABLE_APP_SIGNUP), before anyone is signed in: the form, then
+  // the emailed code. Point the chat API at /api without a token first.
+  export const SignupScreen: ComponentType<{
+    deviceName?: string;
+    onAuthenticated: (session: { token: string; user: any }) => void;
+    onOpenUrl: (url: string) => void;
+    onSignIn: () => void;
+  }>;
+
+  // Rejects (404) while signing up in the app is switched off.
+  export const fetchSignupOptions: () => Promise<unknown>;
+
+  // Holds an office user whose practice isn't set up on plan / payment / authorization;
+  // renders the app for everyone else.
+  export const OnboardingGate: ComponentType<{
+    user: unknown;
+    cardPayment?: boolean;
+    onOpenUrl: (url: string) => void;
+    onOpenWebPath: (path: string) => void;
+    onLogout: () => void;
+    onPaid?: () => void;
+    onCompleted?: (organization: { slug: string }) => void;
+    onHeldChange?: (held: boolean) => void;
+    refreshSignal?: unknown;
+    // Subscribes the user's cable while a professional is held; returns the unsubscribe.
+    connectRealtime?: () => () => void;
+    sx?: object;
+    children: ReactNode;
+  }>;
+
+  // An office user's Home: their current organization's dashboard (ENABLE_APP_DASHBOARD).
+  export const OrganizationHomeScreen: ComponentType<{
+    organization: { slug: string; name: string };
+    onOpenUrl: (url: string) => void;
+    onOpenWebPath: (path: string) => void;
+    onOpenReports?: () => void;
+  }>;
 
   // The pro's own profile, editable in place (GET /api/profile/edit). Mount it in a
   // scrolling panel; web-only links go through the sign-in handoff to openExternal.

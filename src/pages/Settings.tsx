@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Avatar, Box, Button, Divider, IconButton, Stack, Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { getTokenStore } from "@regimenthq/shell-auth";
+import { Browser } from "@capacitor/browser";
+import { authGet, getTokenStore } from "@regimenthq/shell-auth";
 import AvatarEditDialog from "../components/AvatarEditDialog.tsx";
-import { PLATFORM_ORIGIN } from "../services/config.ts";
+import { openWebPage } from "../services/webPages.ts";
 
 type CurrentUser = { id?: number; name?: string; email?: string; photo_url?: string };
 
@@ -22,11 +23,16 @@ const Settings = () => {
   const [user, setUser] = useState(getTokenStore().getUser() as CurrentUser | null);
   const [avatarOpen, setAvatarOpen] = useState(false);
 
-  // Account deletion lives on the platform; open it in the system browser.
-  const openAccountSettings = () => {
-    const path = user?.id ? `/profiles/${user.id}/edit` : "/";
-    window.open(`${PLATFORM_ORIGIN}${path}`, "_blank");
-  };
+  // Account deletion lives on the platform; open it signed in.
+  const openAccountSettings = () => openWebPage(user?.id ? `/profiles/${user.id}/edit` : "/");
+
+  // Back from the browser: if they deleted the account, the 401 signs them out here.
+  useEffect(() => {
+    const handle = Browser.addListener("browserFinished", () => {
+      authGet("config").catch(() => {});
+    });
+    return () => { handle.then((h) => h.remove()).catch(() => {}); };
+  }, []);
 
   const onAvatarUploaded = (photoUrl?: string) => {
     const store = getTokenStore();

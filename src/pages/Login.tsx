@@ -7,6 +7,7 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { useAuthFlow } from "@regimenthq/shell-auth";
+import { useSignupEnabled } from "../services/signup.ts";
 import { PLATFORM_ORIGIN } from "../services/config.ts";
 import MeshBackground from "./login/MeshBackground.tsx";
 import Mascot, { MascotHandle } from "./login/Mascot.tsx";
@@ -156,6 +157,7 @@ const MethodOption = ({
 
 const Login = () => {
   const navigate = useNavigate();
+  const signupEnabled = useSignupEnabled();
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const mascotRef = useRef<MascotHandle>(null);
@@ -468,6 +470,15 @@ const Login = () => {
               >
                 {loading ? "One moment…" : ctaLabel}
               </Button>
+
+              {step === "credentials" && signupEnabled && (
+                <Typography sx={{ textAlign: "center", fontSize: 14, color: TEXT_MUTED }}>
+                  New to Swiss Monkey?{" "}
+                  <Link component="button" type="button" underline="hover" onClick={() => navigate("/signup")} sx={{ fontSize: 14, fontWeight: 500, color: PURPLE, verticalAlign: "baseline", textUnderlineOffset: 3 }}>
+                    Sign up
+                  </Link>
+                </Typography>
+              )}
             </Box>
           </Box>
         </Box>

@@ -8,6 +8,7 @@ import { authGet, getTokenStore } from "@regimenthq/shell-auth";
 import {
   API_BASE, CABLE_URL, CLIENT, PLATFORM, PLATFORM_ORIGIN, getAppVersion,
 } from "../services/config.ts";
+import { endSession } from "../services/session.ts";
 
 // Implements the host/shell contract from the package README: point the REST
 // client at /api with the token, open a token-authed cable consumer, wire the
@@ -77,6 +78,12 @@ const loadFeatureFlags = async () => {
 
 let clientConfigured = false;
 
+// For the signup page, before anyone is signed in: the same client without a token.
+export const ensureSignupApi = () => {
+  configureChatApi({ baseURL: API_BASE, client: CLIENT, platform: PLATFORM, getAppVersion });
+  clientConfigured = false;
+};
+
 // Point the REST client at /api with the token and apply the default flags. Split
 // out of startMessenger and idempotent so it can be called during the Messenger's
 // render — the self-loading messenger-core components (GroupedChatsList,
@@ -88,7 +95,7 @@ export const ensureMessengerClient = () => {
   const token = getTokenStore().getToken();
   if (!token) return;
   configureChatApi({
-    baseURL: API_BASE, token, client: CLIENT, platform: PLATFORM, getAppVersion,
+    baseURL: API_BASE, token, client: CLIENT, platform: PLATFORM, getAppVersion, onUnauthorized: endSession,
   });
   // Apply defaults immediately (getters never read undefined); startMessenger's
   // loadFeatureFlags then refines them from the server.
@@ -120,4 +127,18 @@ export const stopMessenger = () => {
   // A different user may sign in next; force a reconfigure so the client picks up
   // the new token.
   clientConfigured = false;
+};
+
+// While the signup holds a professional (OnboardingGate's connectRealtime), before the
+// messenger's own cable is started: the profile wizard's resume extraction result arrives
+// over it, as the cvExtraction* window events. Returns the disconnect.
+export const connectSignupRealtime = () => {
+  const token = getTokenStore().getToken();
+  if (!token) return () => {};
+  const consumer = createConsumer(`${CABLE_URL}?token=${encodeURIComponent(token)}`);
+  const unsubscribeSignup = subscribeToUserChannel(consumer);
+  return () => {
+    unsubscribeSignup();
+    consumer.disconnect();
+  };
 };

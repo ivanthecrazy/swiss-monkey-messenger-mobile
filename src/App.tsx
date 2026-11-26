@@ -8,7 +8,9 @@ import theme from "./theme.tsx";
 import { setAppVersion } from "./services/config.ts";
 import { ProtectedRoute } from "@regimenthq/shell-auth";
 import Login from "./pages/Login.tsx";
+import Signup from "./pages/Signup.tsx";
 import Messenger from "./pages/Messenger.tsx";
+import Onboarding from "./components/Onboarding.tsx";
 import Settings from "./pages/Settings.tsx";
 
 const App = () => {
@@ -31,11 +33,14 @@ const App = () => {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route
           path="/"
           element={(
             <ProtectedRoute>
-              <Messenger />
+              <Onboarding>
+                <Messenger />
+              </Onboarding>
             </ProtectedRoute>
           )}
         />

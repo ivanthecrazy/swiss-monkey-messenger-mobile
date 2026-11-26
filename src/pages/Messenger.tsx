@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, ReactNode } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   Box, Button, CircularProgress, IconButton, InputBase, Typography,
 } from "@mui/material";
@@ -11,7 +11,7 @@ import {
   AssistantTasksPanel, ChatProvider, ChatsList, Conversation, TeamDialog, fetchChats,
   triggerUnreadChatsLoadedEvent, useAssistantTasks,
   GroupedChatsList, NotificationsList, SearchResultsPanel, FilesList, ContractorDashboardScreen,
-  OwnProfileScreen, WorkDiaryScreen, fetchDiaryPositions, resolveWebLink, ProductivityReportsScreen, PaymentsScreen,
+  OwnProfileScreen, WorkDiaryScreen, fetchDiaryPositions, ProductivityReportsScreen, PaymentsScreen,
   ComplianceCenterScreen,
 } from "@regimenthq/messenger-core";
 import { startMessenger, stopMessenger, ensureMessengerClient } from "../messenger/bootstrap.ts";
@@ -22,8 +22,9 @@ import PullToRefresh from "../components/PullToRefresh.tsx";
 import BottomNav, { MessengerTab } from "../components/BottomNav.tsx";
 import MoreMenu, { moreEntries } from "../components/MoreMenu.tsx";
 import { registerPush } from "../services/push.ts";
-import { PLATFORM_ORIGIN } from "../services/config.ts";
+import { openWebPage } from "../services/webPages.ts";
 import { useCurrentOrganization } from "../services/currentOrganization.ts";
+import OrganizationHome from "../components/OrganizationHome.tsx";
 import OrganizationBilling from "../components/OrganizationBilling.tsx";
 import OrganizationTeam from "../components/OrganizationTeam.tsx";
 import OrganizationContracts from "../components/OrganizationContracts.tsx";
@@ -68,9 +69,14 @@ const Messenger = () => {
   const isAdmin = Boolean((currentUser as { admin?: boolean } | null)?.admin);
 
   const [tab, setTab] = useState<MessengerTab>("chats");
-  // The Home tab is for pros while the platform has ENABLE_APP_DASHBOARD on (a
-  // platform without the key reads as off). The server 403s anyone else anyway.
-  const [showHome, setShowHome] = useState(false);
+  // The Home tab, while the platform has ENABLE_APP_DASHBOARD on (a platform without the
+  // key reads as off): a pro's dashboard, or an office user's current organization's.
+  const [dashboardEnabled, setDashboardEnabled] = useState(false);
+  const isContractorUser = (currentUser as { user_type?: string } | null)?.user_type === "contractor";
+  // My Profile and the pro's Home, as opposed to the organization's.
+  const showProfile = dashboardEnabled && isContractorUser;
+  // Finishing a signup lands on Home (see Onboarding).
+  const openHome = (useLocation().state as { openHome?: boolean } | null)?.openHome === true;
   // The pro's own profile (same gate as Home), shown over the tabs rather than as a
   // route: the user cable lives on this page, and the resume upload needs it for the
   // CV extraction result.
@@ -91,6 +97,7 @@ const Messenger = () => {
   // them view_billing, and for an admin always (the screen asks them to pick one).
   const [orgBillingEnabled, setOrgBillingEnabled] = useState(false);
   const { current: currentOrganization, allOrganizations } = useCurrentOrganization();
+  const showHome = dashboardEnabled && (isContractorUser || Boolean(currentOrganization || allOrganizations));
   const showBilling = orgBillingEnabled && Boolean(currentOrganization?.permissions.view_billing || allOrganizations);
   // Its Team Members (ENABLE_APP_ORG_TEAM), the same way, for those who may manage the team.
   const [orgTeamEnabled, setOrgTeamEnabled] = useState(false);
@@ -128,7 +135,7 @@ const Messenger = () => {
       enable_org_reports?: boolean;
     }>("config")
       .then((cfg) => {
-        setShowHome(isContractor && cfg?.enable_app_dashboard === true);
+        setDashboardEnabled(cfg?.enable_app_dashboard === true);
         setShowReports(isContractor && cfg?.enable_productivity_reports === true);
         setShowPayments(isContractor && cfg?.enable_payments === true);
         setShowCompliance(isContractor && cfg?.enable_compliance_center === true);
@@ -147,6 +154,9 @@ const Messenger = () => {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (openHome && dashboardEnabled) setTab("home");
+  }, [openHome, dashboardEnabled]);
   const [searchQuery, setSearchQuery] = useState("");
   const [alertsUnread, setAlertsUnread] = useState(0);
   // The Alerts badge: seeded here, then live from the cable (the list keeps it in sync
@@ -320,20 +330,6 @@ const Messenger = () => {
     return other?.name || chat.job?.title || "Chat";
   };
 
-  // Web pages (Work Diary's ID verification, alert links) open in the system browser
-  // already signed in, via the one-time handoff. Browser.open rather than
-  // window.open: the URL arrives after a request, and iOS drops a window.open that
-  // isn't a direct response to a tap. The server refuses the handoff to admins, and
-  // any failure falls back to the plain URL (the web's login page).
-  const openPlatformUrl = async (path: string) => {
-    let url = `${PLATFORM_ORIGIN}${path}`;
-    try {
-      url = await resolveWebLink(path);
-    } catch {
-      // keep the plain URL
-    }
-    Browser.open({ url });
-  };
   const openFile = (url: string) => { window.open(url, "_blank"); };
   const openCompliance = (from: { tab: MessengerTab; profile: boolean } | null) => {
     setComplianceFrom(from);
@@ -367,7 +363,7 @@ const Messenger = () => {
           pb: "var(--safe-area-inset-bottom, env(safe-area-inset-bottom))",
         }}
       >
-        {profileOpen && showHome ? (
+        {profileOpen && showProfile ? (
           <>
             {backHeader(() => setProfileOpen(false), "My Profile")}
             <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
@@ -432,7 +428,7 @@ const Messenger = () => {
                 || tab === "orgReports"
                 ? <OrganizationPill /> : undefined)
             ) : (
-              <UserBlock onOpenProfile={showHome ? () => setProfileOpen(true) : undefined} />
+              <UserBlock onOpenProfile={showProfile ? () => setProfileOpen(true) : undefined} />
             )}
             <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               {tab === "chats" && (
@@ -495,7 +491,15 @@ const Messenger = () => {
                 </>
               )}
 
-              {tab === "home" && showHome && (
+              {tab === "home" && showHome && !isContractorUser && (
+                <OrganizationHome
+                  onOpenUrl={(url) => { Browser.open({ url }); }}
+                  onOpenWebPath={openWebPage}
+                  onOpenReports={showOrgReports ? () => setTab("orgReports") : undefined}
+                />
+              )}
+
+              {tab === "home" && showProfile && (
                 <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
                   {/* Browser.open, not window.open: the URL arrives after a request
                       (the sign-in handoff), and iOS drops a window.open that isn't
@@ -517,7 +521,7 @@ const Messenger = () => {
                   <NotificationsList
                     currentUserId={currentUserId}
                     onOpenChat={(chatId, messageId) => openChat(chatId, messageId ?? null)}
-                    onOpenUrl={openPlatformUrl}
+                    onOpenUrl={openWebPage}
                     onUnreadChange={setAlertsUnread}
                     onOpenAttachment={(url) => { Browser.open({ url }); }}
                   />
@@ -537,7 +541,7 @@ const Messenger = () => {
                     openOrgReports: showOrgReports ? () => setTab("orgReports") : undefined,
                     openTeam: showTeam ? () => setTab("team") : undefined,
                     openBilling: showBilling ? () => setTab("billing") : undefined,
-                    openProfile: showHome ? () => setProfileOpen(true) : undefined,
+                    openProfile: showProfile ? () => setProfileOpen(true) : undefined,
                     openSettings: () => navigate("/settings"),
                   })}
                 />
@@ -572,7 +576,7 @@ const Messenger = () => {
                       the screen reloads when it closes or the app regains focus. */}
                   <ComplianceCenterScreen
                     onOpenUrl={(url) => { Browser.open({ url }); }}
-                    onOpenWebPath={openPlatformUrl}
+                    onOpenWebPath={openWebPage}
                     refreshSignal={browserClosedAt}
                   />
                 </Box>
@@ -580,7 +584,7 @@ const Messenger = () => {
 
               {tab === "team" && showTeam && <OrganizationTeam />}
 
-              {tab === "contracts" && showContracts && <OrganizationContracts onOpenWebPath={openPlatformUrl} />}
+              {tab === "contracts" && showContracts && <OrganizationContracts onOpenWebPath={openWebPage} />}
 
               {tab === "timesheets" && showTimesheets && (
                 <OrganizationTimesheets link={timesheetsLink} onOpenUrl={(url) => { Browser.open({ url }); }} />
@@ -593,7 +597,7 @@ const Messenger = () => {
               {tab === "billing" && showBilling && (
                 <OrganizationBilling
                   onOpenUrl={(url) => { Browser.open({ url }); }}
-                  onOpenWebPath={openPlatformUrl}
+                  onOpenWebPath={openWebPage}
                   onOpenTimesheets={showTimesheets
                     ? ({ startDate, userId }) => { setTimesheetsLink({ startDate, userId }); setTab("timesheets"); }
                     : undefined}
@@ -603,7 +607,7 @@ const Messenger = () => {
 
               {tab === "time" && (
                 <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-                  <WorkDiaryScreen onOpenUrl={openPlatformUrl} />
+                  <WorkDiaryScreen onOpenUrl={openWebPage} />
                 </Box>
               )}
 

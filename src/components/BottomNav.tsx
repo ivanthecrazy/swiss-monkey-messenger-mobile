@@ -16,7 +16,7 @@ export const MORE_TABS: MessengerTab[] = ["more", "files", "time", "reports", "p
 type BarKey = "home" | "chats" | "alerts" | "more";
 
 const ITEMS: { key: BarKey; label: string; Icon: typeof ChatBubbleOutlineRoundedIcon }[] = [
-  // Pros only, while the platform has the app dashboard on (see Messenger's showHome).
+  // While the platform has the app dashboard on (see Messenger's showHome).
   // First when shown, as in the desktop rail.
   { key: "home", label: "Home", Icon: HomeOutlinedIcon },
   { key: "chats", label: "Chats", Icon: ChatBubbleOutlineRoundedIcon },
